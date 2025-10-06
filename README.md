@@ -4,7 +4,15 @@
 
 ## About this project
 
-Platform Service Gateway enables communication across different Kubernetes clusters
+The Platform Service Gateway is responsible for enabling the [Gateway API](https://gateway-api.sigs.k8s.io/) on openMCP backend clusters, allowing webhooks from MCP resources to reach services in the platform or workload clusters.
+
+### Architecture
+
+![Architecture of the Platform Service Gateway in the context of openMCP](docs/architecture.excalidraw.svg)
+
+### Dependencies
+
+This platform service uses [Envoy Gateway](https://gateway.envoyproxy.io/) as the Gateway API implementation and [cert-manager](https://cert-manager.io/) to provision TLS certificates.
 
 ## Requirements and Setup
 
