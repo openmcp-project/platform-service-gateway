@@ -107,12 +107,13 @@ func (g *Gateway) reconcileGatewayFunc(obj *gatewayv1.Gateway) func() error {
 				},
 			},
 		}
-		obj.Spec.Infrastructure = &gatewayv1.GatewayInfrastructure{
-			ParametersRef: &gatewayv1.LocalParametersReference{
-				Group: "gateway.envoyproxy.io",
-				Kind:  "EnvoyProxy",
-				Name:  gatewayName,
-			},
+		if obj.Spec.Infrastructure == nil {
+			obj.Spec.Infrastructure = &gatewayv1.GatewayInfrastructure{}
+		}
+		obj.Spec.Infrastructure.ParametersRef = &gatewayv1.LocalParametersReference{
+			Group: "gateway.envoyproxy.io",
+			Kind:  "EnvoyProxy",
+			Name:  gatewayName,
 		}
 
 		baseDomain := g.generateBaseDomain()
