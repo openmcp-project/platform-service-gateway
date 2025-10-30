@@ -14,20 +14,12 @@ import (
 	"github.com/openmcp-project/platform-service-gateway/api/gateway/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 var (
-	errFailedToCreateDeploymentNamespace = errors.New("failed to create deployment namespace")
-	errFailedToGenerateHelmValuesJSON    = errors.New("failed to generate Helm values JSON")
-	errFailedToApplyOCIRepository        = errors.New("failed to apply OCIRepository")
-	errFailedToApplyHelmRelease          = errors.New("failed to apply HelmRelease")
-	errFailedToDeleteOCIRepository       = errors.New("failed to delete OCIRepository")
-	errFailedToDeleteHelmRelease         = errors.New("failed to delete HelmRelease")
-	ErrRemainingResources                = errors.New("some resources are remaining")
+	errFailedToGenerateHelmValuesJSON = errors.New("failed to generate Helm values JSON")
 )
 
 const (
@@ -46,41 +38,28 @@ type Gateway struct {
 
 func (g *Gateway) InstallOrUpdate(ctx context.Context) error {
 	repo := g.getRepo()
-	repoFunc := g.reconcileOCIRepositoryFunc(repo)
-	if _, err := controllerutil.CreateOrUpdate(ctx, g.PlatformClient, repo, repoFunc); err != nil {
-		return errors.Join(errFailedToApplyOCIRepository, err)
-	}
-
-	if err := ensureNamespace(ctx, g.ClusterClient, deploymentNamespace); err != nil {
-		return errors.Join(errFailedToCreateDeploymentNamespace, err)
-	}
-
 	helmRelease := g.getHelmRelease()
-	helmReleaseFunc := g.reconcileHelmReleaseFunc(repo.Name, helmRelease)
-	if _, err := controllerutil.CreateOrUpdate(ctx, g.PlatformClient, helmRelease, helmReleaseFunc); err != nil {
-		return errors.Join(errFailedToApplyHelmRelease, err)
+
+	ops := []applyOperation{
+		ensureNamespace(deploymentNamespace),
+		{
+			obj: repo,
+			f:   g.reconcileOCIRepositoryFunc(repo),
+		},
+		{
+			obj: helmRelease,
+			f:   g.reconcileHelmReleaseFunc(repo.Name, helmRelease),
+		},
 	}
 
-	return nil
+	return createOrUpdate(ctx, g.PlatformClient, ops...)
 }
 
 func (g *Gateway) Uninstall(ctx context.Context) error {
 	repo := g.getRepo()
-	repoErr := g.PlatformClient.Delete(ctx, repo)
-	if err := client.IgnoreNotFound(repoErr); err != nil {
-		return errors.Join(errFailedToDeleteOCIRepository, err)
-	}
-
 	helmRelease := g.getHelmRelease()
-	helmReleaseErr := g.PlatformClient.Delete(ctx, helmRelease)
-	if err := client.IgnoreNotFound(helmReleaseErr); err != nil {
-		return errors.Join(errFailedToDeleteHelmRelease, err)
-	}
 
-	if apierrors.IsNotFound(repoErr) && apierrors.IsNotFound(helmReleaseErr) {
-		return nil
-	}
-	return ErrRemainingResources
+	return ensureDeletionOfObjects(ctx, g.PlatformClient, helmRelease, repo)
 }
 
 func (g *Gateway) getRepo() *sourcev1.OCIRepository {

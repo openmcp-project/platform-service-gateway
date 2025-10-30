@@ -27,6 +27,7 @@ import (
 
 	gatewayv1alpha1 "github.com/openmcp-project/platform-service-gateway/api/gateway/v1alpha1"
 	"github.com/openmcp-project/platform-service-gateway/pkg/envoy"
+	"github.com/openmcp-project/platform-service-gateway/pkg/utils"
 )
 
 var (
@@ -35,11 +36,15 @@ var (
 	errFailedToBuildGatewayManager       = errors.New("failed to build Gateway manager")
 	errFailedToGetAccessRequest          = errors.New("failed to get AccessRequest resource")
 	errFailedToGetClusterAccess          = errors.New("failed to get access to cluster")
+	errClusterAccessNotYetAvailable      = errors.New("cluster access is not yet available")
 )
 
 const (
-	clusterId                      = "cluster"
-	requeueAfterRemainingResources = 10 * time.Second
+	reasonRemainingResources = "RemainingResources"
+	reasonGatewayInstalled   = "GatewayInstalled"
+	reasonGatewayUninstalled = "GatewayUninstalled"
+
+	clusterId = "cluster"
 
 	ControllerName = "GatewayCluster"
 )
@@ -88,9 +93,16 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req reconcile.Request
 
 	// no status update, because the Cluster resource doesn't have status fields for Gateway configuration
 	// instead, output events for significant changes
-	// TODO
 
-	return r.reconcile(ctx, req)
+	res, err := r.reconcile(ctx, req)
+
+	retryable := &utils.RetryableError{}
+	if errors.As(err, &retryable) {
+		log.Info(fmt.Sprintf("Handling retryable error: %s", retryable.Unwrap()), "RequeueAfter", retryable.RequeueAfter)
+		return ctrl.Result{RequeueAfter: retryable.RequeueAfter}, nil
+	}
+
+	return res, err
 }
 
 func (r *ClusterReconciler) reconcile(ctx context.Context, req reconcile.Request) (ctrl.Result, error) {
@@ -132,32 +144,35 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, req reconcile.Request
 		return ctrl.Result{}, nil
 	}
 
-	gwMgr, res, err := r.buildGatewayManager(ctx, req, c)
+	gwMgr, err := r.buildGatewayManager(ctx, req, c)
 	if err != nil {
 		return ctrl.Result{}, errors.Join(errFailedToBuildGatewayManager, err)
-	}
-	if res.RequeueAfter > 0 {
-		return res, nil
 	}
 
 	if !c.DeletionTimestamp.IsZero() || !r.enabledForCluster(c) {
 		// delete gateway resources
 		if err := gwMgr.Cleanup(ctx); err != nil {
-			if errors.Is(err, envoy.ErrRemainingResources) {
-				return ctrl.Result{RequeueAfter: requeueAfterRemainingResources}, err
+			if utils.IsRemainingResourcesError(err) {
+				r.eventRecorder.Event(c, corev1.EventTypeNormal, reasonRemainingResources, err.Error())
 			}
 			return ctrl.Result{}, err
 		}
 
 		// uninstall gateway
 		if err := gwMgr.Uninstall(ctx); err != nil {
-			if errors.Is(err, envoy.ErrRemainingResources) {
-				return ctrl.Result{RequeueAfter: requeueAfterRemainingResources}, err
+			if utils.IsRemainingResourcesError(err) {
+				r.eventRecorder.Event(c, corev1.EventTypeNormal, reasonRemainingResources, err.Error())
 			}
 			return ctrl.Result{}, err
 		}
 
-		// TODO: Remove finalizer
+		if controllerutil.RemoveFinalizer(c, gatewayv1alpha1.GatewayFinalizerOnCluster) {
+			if err := r.PlatformCluster.Client().Update(ctx, c); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+
+		r.eventRecorder.Event(c, corev1.EventTypeNormal, reasonGatewayUninstalled, "Gateway uninstalled successfully")
 		return ctrl.Result{}, nil
 	}
 
@@ -174,8 +189,8 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, req reconcile.Request
 		return ctrl.Result{}, err
 	}
 
-	// TODO: Publish event
-	return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+	r.eventRecorder.Event(c, corev1.EventTypeNormal, reasonGatewayInstalled, "Gateway installed successfully")
+	return ctrl.Result{RequeueAfter: 1 * time.Hour}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -185,27 +200,26 @@ func (r *ClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *ClusterReconciler) buildGatewayManager(ctx context.Context, req reconcile.Request, c *clustersv1alpha1.Cluster) (*envoy.Gateway, ctrl.Result, error) {
+func (r *ClusterReconciler) buildGatewayManager(ctx context.Context, req reconcile.Request, c *clustersv1alpha1.Cluster) (*envoy.Gateway, error) {
 	log := logging.FromContextOrPanic(ctx)
 	log.Info("Creating or updating AccessRequest to get access to Cluster")
 
 	res, err := r.ClusterAccessReconciler.Reconcile(ctx, req)
 	if err != nil {
-		return nil, ctrl.Result{}, err
+		return nil, err
 	}
 	if res.RequeueAfter > 0 {
-		log.Info("Requeuing because cluster access is not yet available", "after", res.RequeueAfter)
-		return nil, res, nil
+		return nil, utils.NewRetryableError(errClusterAccessNotYetAvailable, res.RequeueAfter)
 	}
 
 	ar, err := r.ClusterAccessReconciler.AccessRequest(ctx, req, clusterId)
 	if err != nil {
-		return nil, ctrl.Result{}, errors.Join(errFailedToGetAccessRequest, err)
+		return nil, errors.Join(errFailedToGetAccessRequest, err)
 	}
 
 	access, err := r.ClusterAccessReconciler.Access(ctx, req, clusterId)
 	if err != nil {
-		return nil, ctrl.Result{}, errors.Join(errFailedToGetClusterAccess, err)
+		return nil, errors.Join(errFailedToGetClusterAccess, err)
 	}
 
 	clusterClient := access.Client()
@@ -225,7 +239,7 @@ func (r *ClusterReconciler) buildGatewayManager(ctx context.Context, req reconci
 			},
 		},
 	}
-	return gw, ctrl.Result{}, nil
+	return gw, nil
 }
 
 func (r *ClusterReconciler) shouldReconcile(cluster *clustersv1alpha1.Cluster) bool {

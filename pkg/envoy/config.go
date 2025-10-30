@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/openmcp-project/platform-service-gateway/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -16,10 +19,7 @@ import (
 )
 
 var (
-	errFailedToCreateGatewayNamespace = errors.New("failed to create Gateway namespace")
-	errFailedToApplyGatewayClass      = errors.New("failed to apply GatewayClass")
-	errFailedToApplyEnvoyProxy        = errors.New("failed to apply EnvoyProxy")
-	errFailedToApplyGateway           = errors.New("failed to apply Gateway")
+	errFailedToDeleteObject = errors.New("failed to delete object")
 )
 
 const (
@@ -31,36 +31,42 @@ const (
 
 func (g *Gateway) Configure(ctx context.Context) error {
 	gatewayclass := getGatewayClass()
-	gatewayclassFunc := reconcileGatewayClassFunc(gatewayclass)
-	if _, err := controllerutil.CreateOrUpdate(ctx, g.ClusterClient, gatewayclass, gatewayclassFunc); err != nil {
-		return errors.Join(errFailedToApplyGatewayClass, err)
-	}
-
-	if err := ensureNamespace(ctx, g.ClusterClient, gatewayNamespace); err != nil {
-		return errors.Join(errFailedToCreateGatewayNamespace, err)
-	}
-
 	envoyProxy := getEnvoyProxy()
-	envoyProxyFunc := g.reconcileEnvoyProxyFunc(envoyProxy)
-	if _, err := controllerutil.CreateOrUpdate(ctx, g.ClusterClient, envoyProxy, envoyProxyFunc); err != nil {
-		return errors.Join(errFailedToApplyEnvoyProxy, err)
-	}
-
 	gateway := getGateway()
-	gatewayFunc := g.reconcileGatewayFunc(gateway)
-	if _, err := controllerutil.CreateOrUpdate(ctx, g.ClusterClient, gateway, gatewayFunc); err != nil {
-		return errors.Join(errFailedToApplyGateway, err)
+
+	ops := []applyOperation{
+		ensureNamespace(gatewayNamespace),
+		{
+			obj: gatewayclass,
+			f:   reconcileGatewayClassFunc(gatewayclass),
+		},
+		{
+			obj: envoyProxy,
+			f:   g.reconcileEnvoyProxyFunc(envoyProxy),
+		},
+		{
+			obj: gateway,
+			f:   g.reconcileGatewayFunc(gateway),
+		},
 	}
 
-	return nil
+	err := createOrUpdate(ctx, g.ClusterClient, ops...)
+	if utils.IsCRDNotFoundError(err) {
+		return utils.NewRetryableError(err, 10*time.Second)
+	}
+	return err
 }
 
 func (g *Gateway) Cleanup(ctx context.Context) error {
-	// TODO: 1. Delete Gateway, wait for 404
-	// TODO: 2. Delete EnvoyProxy resource
-	// TODO: 3. Delete gatewayclass
+	gateway := getGateway()
+	envoyProxy := getEnvoyProxy()
+	gatewayclass := getGatewayClass()
 
-	return nil
+	return ensureDeletionOfObjects(ctx, g.ClusterClient,
+		gateway,
+		envoyProxy,
+		gatewayclass,
+	)
 }
 
 // ----- GatewayClass -----
@@ -169,11 +175,51 @@ func (g *Gateway) reconcileEnvoyProxyFunc(obj *unstructured.Unstructured) func()
 
 // ----- Namespace -----
 
-func ensureNamespace(ctx context.Context, c client.Client, namespace string) error {
-	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
+func ensureNamespace(namespace string) applyOperation {
+	return applyOperation{
+		obj: &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: namespace,
+			},
 		},
 	}
-	return client.IgnoreAlreadyExists(c.Create(ctx, ns))
+}
+
+// ----- Utils -----
+
+func ensureDeletionOfObjects(ctx context.Context, c client.Client, objs ...client.Object) error {
+	remaining := []client.Object{}
+	for _, obj := range objs {
+		err := c.Delete(ctx, obj)
+		if apierrors.IsNotFound(err) || utils.IsCRDNotFoundError(err) {
+			// object not found or CRD does not exist (anymore)
+			continue
+		}
+		if err != nil {
+			return errors.Join(errFailedToDeleteObject, err)
+		}
+		// object may still exist
+		remaining = append(remaining, obj)
+	}
+
+	if len(remaining) > 0 {
+		return utils.NewRemainingResourcesError(10*time.Second, objs...)
+	}
+
+	// all objects have been deleted
+	return nil
+}
+
+type applyOperation struct {
+	obj client.Object
+	f   controllerutil.MutateFn
+}
+
+func createOrUpdate(ctx context.Context, c client.Client, ops ...applyOperation) error {
+	for _, op := range ops {
+		if _, err := controllerutil.CreateOrUpdate(ctx, c, op.obj, op.f); err != nil {
+			return err
+		}
+	}
+	return nil
 }
