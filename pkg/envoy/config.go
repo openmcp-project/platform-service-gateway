@@ -35,7 +35,7 @@ func (g *Gateway) Configure(ctx context.Context) error {
 	gateway := getGateway()
 
 	ops := []applyOperation{
-		ensureNamespace(gatewayNamespace),
+		ensureNamespace(gatewayNamespace, nil),
 		{
 			obj: gatewayclass,
 			f:   reconcileGatewayClassFunc(gatewayclass),
@@ -175,18 +175,22 @@ func (g *Gateway) reconcileEnvoyProxyFunc(obj *unstructured.Unstructured) func()
 
 // ----- Namespace -----
 
-func ensureNamespace(namespace string) applyOperation {
+func ensureNamespace(namespace string, c client.Client) applyOperation {
 	return applyOperation{
 		obj: &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: namespace,
 			},
 		},
+		c: c,
 	}
 }
 
 // ----- Utils -----
 
+// ensureDeletionOfObjects tries to delete the given objects. It returns a *RetryableError as long as any of the objects still exists.
+// The function should be called with the same parameters until it returns nil.
+// Any unexpected errors are returned as is.
 func ensureDeletionOfObjects(ctx context.Context, c client.Client, objs ...client.Object) error {
 	remaining := []client.Object{}
 	for _, obj := range objs {
@@ -211,13 +215,29 @@ func ensureDeletionOfObjects(ctx context.Context, c client.Client, objs ...clien
 }
 
 type applyOperation struct {
+	// obj is the object to be created or updated.
+	// Parameters other than name and namespace must be set using the mutate function.
 	obj client.Object
-	f   controllerutil.MutateFn
+
+	// f is a function which mutates the existing object into its desired state.
+	f controllerutil.MutateFn
+
+	// c is an optional parameter to override the client used for this operation.
+	c client.Client
 }
 
+// createOrUpdate attempts to fetch the given objects from the Kubernetes cluster.
+// If an object didn't exist, MutateFn will be called, and it will be created.
+// If an object did exist, MutateFn will be called, and if it changed the
+// object, it will be updated.
+// Otherwise, it will be left unchanged.
 func createOrUpdate(ctx context.Context, c client.Client, ops ...applyOperation) error {
 	for _, op := range ops {
-		if _, err := controllerutil.CreateOrUpdate(ctx, c, op.obj, op.f); err != nil {
+		opC := c
+		if op.c != nil {
+			opC = op.c
+		}
+		if _, err := controllerutil.CreateOrUpdate(ctx, opC, op.obj, op.f); err != nil {
 			return err
 		}
 	}

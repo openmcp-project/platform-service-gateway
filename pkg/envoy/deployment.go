@@ -41,7 +41,7 @@ func (g *Gateway) InstallOrUpdate(ctx context.Context) error {
 	helmRelease := g.getHelmRelease()
 
 	ops := []applyOperation{
-		ensureNamespace(deploymentNamespace),
+		ensureNamespace(deploymentNamespace, g.ClusterClient),
 		{
 			obj: repo,
 			f:   g.reconcileOCIRepositoryFunc(repo),
