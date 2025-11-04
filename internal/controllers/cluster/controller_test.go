@@ -4,9 +4,10 @@ import (
 	"testing"
 
 	v1alpha1 "github.com/openmcp-project/openmcp-operator/api/clusters/v1alpha1"
-	gatewayv1alpha1 "github.com/openmcp-project/platform-service-gateway/api/gateway/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	gatewayv1alpha1 "github.com/openmcp-project/platform-service-gateway/api/gateway/v1alpha1"
 )
 
 var (
