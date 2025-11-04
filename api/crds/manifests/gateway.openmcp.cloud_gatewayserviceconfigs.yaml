@@ -1,0 +1,135 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  labels:
+    openmcp.cloud/cluster: platform
+  name: gatewayserviceconfigs.gateway.openmcp.cloud
+spec:
+  group: gateway.openmcp.cloud
+  names:
+    kind: GatewayServiceConfig
+    listKind: GatewayServiceConfigList
+    plural: gatewayserviceconfigs
+    singular: gatewayserviceconfig
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: GatewayServiceConfig is the Schema for the Gateway PlatformService
+          configuration API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: GatewayServiceConfigSpec defines the desired state of GatewayServiceConfig
+            properties:
+              clusters:
+                description: Clusters that should be included in the gateway configuration.
+                items:
+                  properties:
+                    clusterRef:
+                      description: ClusterRef can be used to reference a single cluster.
+                      properties:
+                        name:
+                          description: Name of the referenced Cluster.
+                          minLength: 1
+                          type: string
+                        namespace:
+                          default: default
+                          description: Namespace of the referenced Cluster.
+                          type: string
+                      required:
+                      - name
+                      - namespace
+                      type: object
+                    selector:
+                      description: Selector for multiple clusters using labels and
+                        purpose.
+                      properties:
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          description: MatchLabels selects clusters based on labels.
+                          type: object
+                        matchPurpose:
+                          description: MatchPurpose selects clusters based on purpose.
+                          type: string
+                      type: object
+                  type: object
+                type: array
+              dns:
+                description: DNS configuration.
+                properties:
+                  baseDomain:
+                    description: 'BaseDomain is the domain from which subdomains will
+                      be derived. Example: dev.openmcp.example.com.'
+                    minLength: 1
+                    type: string
+                required:
+                - baseDomain
+                type: object
+              envoyGateway:
+                description: EnvoyGateway configuration.
+                properties:
+                  chart:
+                    description: Chart configuration for Envoy Gateway.
+                    properties:
+                      tag:
+                        description: 'Tag of the chart. Example: 1.5.4'
+                        minLength: 1
+                        type: string
+                      url:
+                        default: oci://docker.io/envoyproxy/gateway-helm
+                        description: 'URL to the chart. Default: oci://docker.io/envoyproxy/gateway-helm'
+                        type: string
+                    required:
+                    - tag
+                    - url
+                    type: object
+                  images:
+                    description: Images overrides container image locations for Envoy
+                      components.
+                    properties:
+                      gateway:
+                        description: 'EnvoyGateway image. Example: docker.io/envoyproxy/gateway:v1.5.1'
+                        type: string
+                      proxy:
+                        description: 'EnvoyProxy image. Example: docker.io/envoyproxy/envoy:distroless-v1.35.3'
+                        type: string
+                      rateLimit:
+                        description: 'Ratelimit image. Example: docker.io/envoyproxy/ratelimit:e74a664a'
+                        type: string
+                    required:
+                    - gateway
+                    - proxy
+                    - rateLimit
+                    type: object
+                required:
+                - chart
+                type: object
+            required:
+            - dns
+            - envoyGateway
+            type: object
+        type: object
+    served: true
+    storage: true

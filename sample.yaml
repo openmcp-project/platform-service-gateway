@@ -1,0 +1,27 @@
+apiVersion: gateway.openmcp.cloud/v1alpha1
+kind: GatewayServiceConfig
+metadata:
+  name: gateway
+spec:
+  clusters:
+    # Match clusters with label gateway=true
+    - selector:
+        matchLabels:
+          gateway: "true"
+    # Match clusters with purpose platform
+    - selector:
+        matchPurpose: platform
+    # Match clusters with purpose workload and label foo=bar
+    - selector:
+        matchPurpose: workload
+        matchLabels:
+          foo: bar
+    # Match specific cluster
+    - clusterRef:
+        name: abc
+        namespace: default
+  envoyGateway:
+    chart:
+      tag: 1.5.4
+  dns:
+    baseDomain: dev.example.com
