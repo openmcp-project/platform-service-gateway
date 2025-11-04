@@ -108,21 +108,3 @@ func IsCRDNotFoundError(err error) bool {
 
 	return true
 }
-
-// IgnoreCRDNotFound returns nil on "CRD not found" errors.
-// All other values that are not "CRD not found" errors or nil are returned unmodified.
-func IgnoreCRDNotFound(err error) error {
-	if IsCRDNotFoundError(err) {
-		return nil
-	}
-	return err
-}
-
-// IgnoreObjectOrCRDNotFound returns nil on NotFound and "CRD not found" errors.
-// All other values that are not NotFound or "CRD not found" errors or nil are returned unmodified.
-func IgnoreObjectOrCRDNotFound(err error) error {
-	if apierrors.IsNotFound(err) || IsCRDNotFoundError(err) {
-		return nil
-	}
-	return err
-}
