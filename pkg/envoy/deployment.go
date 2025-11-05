@@ -11,11 +11,12 @@ import (
 	fluxmeta "github.com/fluxcd/pkg/apis/meta"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	clustersv1alpha1 "github.com/openmcp-project/openmcp-operator/api/clusters/v1alpha1"
-	"github.com/openmcp-project/platform-service-gateway/api/gateway/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/openmcp-project/platform-service-gateway/api/gateway/v1alpha1"
 )
 
 var (
@@ -111,11 +112,13 @@ func (g *Gateway) reconcileHelmReleaseFunc(repoName string, obj *helmv2.HelmRele
 
 		obj.Spec.Interval = metav1.Duration{Duration: 1 * time.Hour}
 		obj.Spec.Install = &helmv2.Install{
+			CRDs: helmv2.CreateReplace,
 			Remediation: &helmv2.InstallRemediation{
 				Retries: 3,
 			},
 		}
 		obj.Spec.Upgrade = &helmv2.Upgrade{
+			CRDs: helmv2.CreateReplace,
 			Remediation: &helmv2.UpgradeRemediation{
 				Retries: 3,
 			},
