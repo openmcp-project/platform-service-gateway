@@ -8,7 +8,7 @@ require (
 	github.com/fluxcd/helm-controller/api v1.4.3
 	github.com/fluxcd/pkg/apis/meta v1.22.0
 	github.com/fluxcd/source-controller/api v1.7.3
-	github.com/openmcp-project/controller-utils v0.23.2
+	github.com/openmcp-project/controller-utils v0.23.3
 	github.com/openmcp-project/openmcp-operator/api v0.16.0
 	github.com/openmcp-project/openmcp-operator/lib v0.16.0
 	github.com/openmcp-project/platform-service-gateway/api v0.0.1
@@ -19,7 +19,7 @@ require (
 	k8s.io/apimachinery v0.34.1
 	k8s.io/client-go v0.34.1
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
-	sigs.k8s.io/controller-runtime v0.22.3
+	sigs.k8s.io/controller-runtime v0.22.4
 	sigs.k8s.io/gateway-api v1.4.0
 	sigs.k8s.io/yaml v1.6.0
 )
