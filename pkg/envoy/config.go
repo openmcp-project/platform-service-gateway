@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/openmcp-project/platform-service-gateway/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,6 +15,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
+
+	"github.com/openmcp-project/platform-service-gateway/pkg/utils"
 )
 
 var (
@@ -163,7 +164,7 @@ func (g *Gateway) reconcileEnvoyProxyFunc(obj *unstructured.Unstructured) func()
 					"envoyDeployment": map[string]any{
 						"container": container,
 						"pod": map[string]any{
-							"imagePullSecrets": g.PullSecrets,
+							"imagePullSecrets": g.EnvoyConfig.Images.ImagePullSecrets,
 						},
 					},
 				},

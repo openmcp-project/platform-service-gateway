@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"github.com/fluxcd/pkg/apis/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -60,6 +61,15 @@ type EnvoyGatewayChart struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	Tag string `json:"tag"`
+
+	// SecretRef specifies the Secret containing authentication credentials
+	// for the OCIRepository.
+	// For HTTP/S basic auth the secret must contain 'username' and 'password'
+	// fields.
+	// Support for TLS auth using the 'certFile' and 'keyFile', and/or 'caFile'
+	// keys is deprecated. Please use `.spec.certSecretRef` instead.
+	// +optional
+	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
 type ImagesConfig struct {
@@ -71,6 +81,11 @@ type ImagesConfig struct {
 
 	// Ratelimit image. Example: docker.io/envoyproxy/ratelimit:e74a664a
 	Ratelimit string `json:"rateLimit"`
+
+	// ImagePullSecrets specifies the Secrets containing authentication credentials
+	// for the Envoy Gateway deployment.
+	// +optional
+	ImagePullSecrets []meta.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 }
 
 type DNSConfig struct {

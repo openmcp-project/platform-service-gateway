@@ -93,6 +93,21 @@ spec:
                   chart:
                     description: Chart configuration for Envoy Gateway.
                     properties:
+                      secretRef:
+                        description: |-
+                          SecretRef specifies the Secret containing authentication credentials
+                          for the OCIRepository.
+                          For HTTP/S basic auth the secret must contain 'username' and 'password'
+                          fields.
+                          Support for TLS auth using the 'certFile' and 'keyFile', and/or 'caFile'
+                          keys is deprecated. Please use `.spec.certSecretRef` instead.
+                        properties:
+                          name:
+                            description: Name of the referent.
+                            type: string
+                        required:
+                        - name
+                        type: object
                       tag:
                         description: 'Tag of the chart. Example: 1.5.4'
                         minLength: 1
@@ -112,6 +127,21 @@ spec:
                       gateway:
                         description: 'EnvoyGateway image. Example: docker.io/envoyproxy/gateway:v1.5.1'
                         type: string
+                      imagePullSecrets:
+                        description: |-
+                          ImagePullSecrets specifies the Secrets containing authentication credentials
+                          for the Envoy Gateway deployment.
+                        items:
+                          description: LocalObjectReference contains enough information
+                            to locate the referenced Kubernetes resource object.
+                          properties:
+                            name:
+                              description: Name of the referent.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
                       proxy:
                         description: 'EnvoyProxy image. Example: docker.io/envoyproxy/envoy:distroless-v1.35.3'
                         type: string
