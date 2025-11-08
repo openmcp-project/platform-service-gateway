@@ -1,6 +1,6 @@
 module github.com/openmcp-project/platform-service-gateway/api
 
-go 1.25.3
+go 1.25.4
 
 require (
 	github.com/fluxcd/pkg/apis/meta v1.22.0
