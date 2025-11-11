@@ -156,9 +156,20 @@ spec:
                 required:
                 - chart
                 type: object
+              gateway:
+                description: Gateway configuration.
+                properties:
+                  tlsPort:
+                    default: 9443
+                    description: TLSPort is the port on which the gateway will listen
+                      for TLS traffic.
+                    format: int32
+                    type: integer
+                type: object
             required:
             - dns
             - envoyGateway
+            - gateway
             type: object
         type: object
     served: true
