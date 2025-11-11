@@ -228,6 +228,7 @@ func (r *ClusterReconciler) buildGatewayManager(ctx context.Context, req reconci
 	gw := &envoy.Gateway{
 		Cluster:        c,
 		EnvoyConfig:    r.Config.Spec.EnvoyGateway,
+		GatewayConfig:  r.Config.Spec.Gateway,
 		DNSConfig:      r.Config.Spec.DNS,
 		PlatformClient: r.PlatformCluster.Client(),
 		ClusterClient:  access.Client(),

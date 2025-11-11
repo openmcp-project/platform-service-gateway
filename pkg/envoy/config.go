@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -27,6 +28,7 @@ const (
 	gatewayClassName     = "envoy-gateway"
 	gatewayName          = "default"
 	gatewayNamespace     = "openmcp-system"
+	tlsPortAnnotation    = "gateway.openmcp.cloud/tls-port"
 	baseDomainAnnotation = "dns.openmcp.cloud/base-domain"
 )
 
@@ -102,7 +104,7 @@ func (g *Gateway) reconcileGatewayFunc(obj *gatewayv1.Gateway) func() error {
 		obj.Spec.Listeners = []gatewayv1.Listener{
 			{
 				Name:     "tls",
-				Port:     9443,
+				Port:     g.getTLSPort(),
 				Protocol: gatewayv1.TLSProtocolType,
 				TLS: &gatewayv1.ListenerTLSConfig{
 					Mode: ptr.To(gatewayv1.TLSModePassthrough),
@@ -124,6 +126,7 @@ func (g *Gateway) reconcileGatewayFunc(obj *gatewayv1.Gateway) func() error {
 		}
 
 		baseDomain := g.generateBaseDomain()
+		metav1.SetMetaDataAnnotation(&obj.ObjectMeta, tlsPortAnnotation, strconv.Itoa(int(g.getTLSPort())))
 		metav1.SetMetaDataAnnotation(&obj.ObjectMeta, baseDomainAnnotation, baseDomain)
 
 		return nil
@@ -132,6 +135,13 @@ func (g *Gateway) reconcileGatewayFunc(obj *gatewayv1.Gateway) func() error {
 
 func (g *Gateway) generateBaseDomain() string {
 	return fmt.Sprintf("%s.%s.%s", g.Cluster.Name, g.Cluster.Namespace, g.DNSConfig.BaseDomain)
+}
+
+func (g *Gateway) getTLSPort() int32 {
+	if g.GatewayConfig.TLSPort != 0 {
+		return g.GatewayConfig.TLSPort
+	}
+	return 9443
 }
 
 // ----- EnvoyProxy -----
