@@ -13,6 +13,9 @@ type GatewayServiceConfigSpec struct {
 	// Clusters that should be included in the gateway configuration.
 	Clusters []ClusterTerm `json:"clusters,omitempty"`
 
+	// Gateway configuration.
+	Gateway GatewayConfig `json:"gateway"`
+
 	// DNS configuration.
 	DNS DNSConfig `json:"dns"`
 }
@@ -86,6 +89,12 @@ type ImagesConfig struct {
 	// for the Envoy Gateway deployment.
 	// +optional
 	ImagePullSecrets []meta.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+}
+
+type GatewayConfig struct {
+	// TLSPort is the port on which the gateway will listen for TLS traffic.
+	// +kubebuilder:default=9443
+	TLSPort int32 `json:"tlsPort,omitempty"`
 }
 
 type DNSConfig struct {
