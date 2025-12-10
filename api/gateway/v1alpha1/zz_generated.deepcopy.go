@@ -211,7 +211,11 @@ func (in *GatewayServiceConfigSpec) DeepCopyInto(out *GatewayServiceConfigSpec) 
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	out.Gateway = in.Gateway
+	if in.Gateway != nil {
+		in, out := &in.Gateway, &out.Gateway
+		*out = new(GatewayConfig)
+		**out = **in
+	}
 	out.DNS = in.DNS
 }
 

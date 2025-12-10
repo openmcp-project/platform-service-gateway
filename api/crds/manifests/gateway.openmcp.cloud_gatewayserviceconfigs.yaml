@@ -169,7 +169,6 @@ spec:
             required:
             - dns
             - envoyGateway
-            - gateway
             type: object
         type: object
     served: true
