@@ -174,6 +174,7 @@ func (g *Gateway) reconcileEnvoyProxyFunc(obj *unstructured.Unstructured) func()
 		}
 
 		obj.Object["spec"] = map[string]any{
+			"ipFamily": g.EnvoyConfig.IPFamily,
 			"provider": map[string]any{
 				"type": "Kubernetes",
 				"kubernetes": map[string]any{

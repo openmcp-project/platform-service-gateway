@@ -53,6 +53,12 @@ type EnvoyGatewayConfig struct {
 
 	// Chart configuration for Envoy Gateway.
 	Chart EnvoyGatewayChart `json:"chart"`
+
+	// IPFamily specifies the IP family for the Envoy Proxy deployment.
+	// Accepted values are "IPv4", "IPv6", and "DualStack".
+	// +kubebuilder:validation:Enum=IPv4;IPv6;DualStack
+	// +optional
+	IPFamily *string `json:"ipFamily,omitempty"`
 }
 
 type EnvoyGatewayChart struct {
