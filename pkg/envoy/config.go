@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
+	fluxmeta "github.com/fluxcd/pkg/apis/meta"
 	"github.com/openmcp-project/platform-service-gateway/pkg/utils"
 )
 
@@ -161,9 +162,14 @@ func getEnvoyProxy() *unstructured.Unstructured {
 func (g *Gateway) reconcileEnvoyProxyFunc(obj *unstructured.Unstructured) func() error {
 	return func() error {
 		var container map[string]any
-		if g.EnvoyConfig.Images != nil && g.EnvoyConfig.Images.EnvoyProxy != "" {
-			container = map[string]any{
-				"image": g.EnvoyConfig.Images.EnvoyProxy,
+		var imagePullSecrets []fluxmeta.LocalObjectReference
+
+		if img := g.EnvoyConfig.Images; img != nil {
+			imagePullSecrets = img.ImagePullSecrets
+			if img.EnvoyProxy != "" {
+				container = map[string]any{
+					"image": img.EnvoyProxy,
+				}
 			}
 		}
 
@@ -174,7 +180,7 @@ func (g *Gateway) reconcileEnvoyProxyFunc(obj *unstructured.Unstructured) func()
 					"envoyDeployment": map[string]any{
 						"container": container,
 						"pod": map[string]any{
-							"imagePullSecrets": g.EnvoyConfig.Images.ImagePullSecrets,
+							"imagePullSecrets": imagePullSecrets,
 						},
 					},
 				},
