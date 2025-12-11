@@ -14,7 +14,7 @@ type GatewayServiceConfigSpec struct {
 	Clusters []ClusterTerm `json:"clusters,omitempty"`
 
 	// Gateway configuration.
-	Gateway GatewayConfig `json:"gateway"`
+	Gateway *GatewayConfig `json:"gateway,omitempty"`
 
 	// DNS configuration.
 	DNS DNSConfig `json:"dns"`

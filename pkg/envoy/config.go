@@ -138,7 +138,7 @@ func (g *Gateway) generateBaseDomain() string {
 }
 
 func (g *Gateway) getTLSPort() int32 {
-	if g.GatewayConfig.TLSPort != 0 {
+	if g.GatewayConfig != nil && g.GatewayConfig.TLSPort != 0 {
 		return g.GatewayConfig.TLSPort
 	}
 	return 9443

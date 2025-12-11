@@ -30,7 +30,7 @@ const (
 type Gateway struct {
 	Cluster        *clustersv1alpha1.Cluster
 	EnvoyConfig    v1alpha1.EnvoyGatewayConfig
-	GatewayConfig  v1alpha1.GatewayConfig
+	GatewayConfig  *v1alpha1.GatewayConfig
 	DNSConfig      v1alpha1.DNSConfig
 	PlatformClient client.Client
 	ClusterClient  client.Client
