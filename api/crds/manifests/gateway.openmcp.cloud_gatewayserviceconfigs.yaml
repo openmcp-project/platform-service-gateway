@@ -153,6 +153,15 @@ spec:
                     - proxy
                     - rateLimit
                     type: object
+                  ipFamily:
+                    description: |-
+                      IPFamily specifies the IP family for the Envoy Proxy deployment.
+                      Accepted values are "IPv4", "IPv6", and "DualStack".
+                    enum:
+                    - IPv4
+                    - IPv6
+                    - DualStack
+                    type: string
                 required:
                 - chart
                 type: object
