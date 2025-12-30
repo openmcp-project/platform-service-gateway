@@ -58,16 +58,16 @@ spec:
 
 ## 📖 Usage
 
-### Configure a `ProviderConfig`
+### Configure a `GatewayServiceConfig`
 
-A `ProviderConfig` is an API where you can configure the platform-service-gateway.
-The `ProviderConfig` is stored in the Platform cluster and therefore in the responsibility realm of the platform owner.
+A `GatewayServiceConfig` is an API where you can configure the platform-service-gateway.
+The `GatewayServiceConfig` is stored in the Platform cluster and therefore in the responsibility realm of the platform owner.
 
 ```yaml
 apiVersion: gateway.openmcp.cloud/v1alpha1
-kind: ProviderConfig
+kind: GatewayServiceConfig
 metadata:
-  name: default
+  name: gateway # needs to match `PlatformService.metadata.name`
 spec:
   envoyGateway:
     images:
@@ -80,15 +80,12 @@ spec:
 
   clusters:
     - selector:
-      matchPurpose:
-        - platform
+        matchPurpose: platform
     - selector:
-      matchPurpose:
-        - workload
+        matchPurpose: workload
 
   dns:
     baseDomain: dev.openmcp.example.com
-
 ```
 
 ## 📚 Documentation

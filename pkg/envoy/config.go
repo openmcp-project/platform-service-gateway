@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -16,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
+	fluxmeta "github.com/fluxcd/pkg/apis/meta"
 	"github.com/openmcp-project/platform-service-gateway/pkg/utils"
 )
 
@@ -27,6 +29,7 @@ const (
 	gatewayClassName     = "envoy-gateway"
 	gatewayName          = "default"
 	gatewayNamespace     = "openmcp-system"
+	tlsPortAnnotation    = "gateway.openmcp.cloud/tls-port"
 	baseDomainAnnotation = "dns.openmcp.cloud/base-domain"
 )
 
@@ -102,7 +105,7 @@ func (g *Gateway) reconcileGatewayFunc(obj *gatewayv1.Gateway) func() error {
 		obj.Spec.Listeners = []gatewayv1.Listener{
 			{
 				Name:     "tls",
-				Port:     9443,
+				Port:     g.getTLSPort(),
 				Protocol: gatewayv1.TLSProtocolType,
 				TLS: &gatewayv1.ListenerTLSConfig{
 					Mode: ptr.To(gatewayv1.TLSModePassthrough),
@@ -124,6 +127,7 @@ func (g *Gateway) reconcileGatewayFunc(obj *gatewayv1.Gateway) func() error {
 		}
 
 		baseDomain := g.generateBaseDomain()
+		metav1.SetMetaDataAnnotation(&obj.ObjectMeta, tlsPortAnnotation, strconv.Itoa(int(g.getTLSPort())))
 		metav1.SetMetaDataAnnotation(&obj.ObjectMeta, baseDomainAnnotation, baseDomain)
 
 		return nil
@@ -132,6 +136,13 @@ func (g *Gateway) reconcileGatewayFunc(obj *gatewayv1.Gateway) func() error {
 
 func (g *Gateway) generateBaseDomain() string {
 	return fmt.Sprintf("%s.%s.%s", g.Cluster.Name, g.Cluster.Namespace, g.DNSConfig.BaseDomain)
+}
+
+func (g *Gateway) getTLSPort() int32 {
+	if g.GatewayConfig != nil && g.GatewayConfig.TLSPort != 0 {
+		return g.GatewayConfig.TLSPort
+	}
+	return 9443
 }
 
 // ----- EnvoyProxy -----
@@ -151,20 +162,26 @@ func getEnvoyProxy() *unstructured.Unstructured {
 func (g *Gateway) reconcileEnvoyProxyFunc(obj *unstructured.Unstructured) func() error {
 	return func() error {
 		var container map[string]any
-		if g.EnvoyConfig.Images != nil && g.EnvoyConfig.Images.EnvoyProxy != "" {
-			container = map[string]any{
-				"image": g.EnvoyConfig.Images.EnvoyProxy,
+		var imagePullSecrets []fluxmeta.LocalObjectReference
+
+		if img := g.EnvoyConfig.Images; img != nil {
+			imagePullSecrets = img.ImagePullSecrets
+			if img.EnvoyProxy != "" {
+				container = map[string]any{
+					"image": img.EnvoyProxy,
+				}
 			}
 		}
 
 		obj.Object["spec"] = map[string]any{
+			"ipFamily": g.EnvoyConfig.IPFamily,
 			"provider": map[string]any{
 				"type": "Kubernetes",
 				"kubernetes": map[string]any{
 					"envoyDeployment": map[string]any{
 						"container": container,
 						"pod": map[string]any{
-							"imagePullSecrets": g.PullSecrets,
+							"imagePullSecrets": imagePullSecrets,
 						},
 					},
 				},

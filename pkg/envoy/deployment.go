@@ -30,10 +30,10 @@ const (
 type Gateway struct {
 	Cluster        *clustersv1alpha1.Cluster
 	EnvoyConfig    v1alpha1.EnvoyGatewayConfig
+	GatewayConfig  *v1alpha1.GatewayConfig
 	DNSConfig      v1alpha1.DNSConfig
 	PlatformClient client.Client
 	ClusterClient  client.Client
-	PullSecrets    []corev1.LocalObjectReference
 	FluxKubeconfig *fluxmeta.KubeConfigReference
 }
 
@@ -41,17 +41,22 @@ func (g *Gateway) InstallOrUpdate(ctx context.Context) error {
 	repo := g.getRepo()
 	helmRelease := g.getHelmRelease()
 
+	imagePullSecretOps := g.ensureSecrets(ctx, deploymentNamespace)
+
 	ops := []applyOperation{
 		ensureNamespace(deploymentNamespace, g.ClusterClient),
-		{
+	}
+	ops = append(ops, imagePullSecretOps...)
+	ops = append(ops,
+		applyOperation{
 			obj: repo,
 			f:   g.reconcileOCIRepositoryFunc(repo),
 		},
-		{
+		applyOperation{
 			obj: helmRelease,
 			f:   g.reconcileHelmReleaseFunc(repo.Name, helmRelease),
 		},
-	}
+	)
 
 	return createOrUpdate(ctx, g.PlatformClient, ops...)
 }
@@ -93,11 +98,7 @@ func (g *Gateway) reconcileOCIRepositoryFunc(obj *sourcev1.OCIRepository) func()
 			Tag: g.EnvoyConfig.Chart.Tag,
 		}
 
-		if len(g.PullSecrets) > 0 {
-			obj.Spec.SecretRef = &fluxmeta.LocalObjectReference{
-				Name: g.PullSecrets[0].Name,
-			}
-		}
+		obj.Spec.SecretRef = g.EnvoyConfig.Chart.SecretRef
 
 		return nil
 	}
@@ -112,11 +113,13 @@ func (g *Gateway) reconcileHelmReleaseFunc(repoName string, obj *helmv2.HelmRele
 
 		obj.Spec.Interval = metav1.Duration{Duration: 1 * time.Hour}
 		obj.Spec.Install = &helmv2.Install{
+			CRDs: helmv2.CreateReplace,
 			Remediation: &helmv2.InstallRemediation{
 				Retries: 3,
 			},
 		}
 		obj.Spec.Upgrade = &helmv2.Upgrade{
+			CRDs: helmv2.CreateReplace,
 			Remediation: &helmv2.UpgradeRemediation{
 				Retries: 3,
 			},
@@ -134,6 +137,46 @@ func (g *Gateway) reconcileHelmReleaseFunc(repoName string, obj *helmv2.HelmRele
 	}
 }
 
+func (g *Gateway) reconcileSecretFunc(ctx context.Context, obj *corev1.Secret) func() error {
+	return func() error {
+		sourceSecret := &corev1.Secret{}
+		sourceKey := client.ObjectKey{
+			Namespace: g.Cluster.Namespace,
+			Name:      obj.Name,
+		}
+		if err := g.PlatformClient.Get(ctx, sourceKey, sourceSecret); err != nil {
+			return fmt.Errorf("failed to get secret %s: %w", sourceKey, err)
+		}
+
+		obj.Data = sourceSecret.Data
+		obj.Type = sourceSecret.Type
+		return nil
+	}
+}
+
+func (g *Gateway) ensureSecrets(ctx context.Context, targetNamespace string) []applyOperation {
+	if g.EnvoyConfig.Images == nil || len(g.EnvoyConfig.Images.ImagePullSecrets) == 0 {
+		return nil
+	}
+
+	ops := make([]applyOperation, len(g.EnvoyConfig.Images.ImagePullSecrets))
+	for i, imagePullSecret := range g.EnvoyConfig.Images.ImagePullSecrets {
+		obj := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      imagePullSecret.Name,
+				Namespace: targetNamespace,
+			},
+		}
+		ops[i] = applyOperation{
+			obj: obj,
+			f:   g.reconcileSecretFunc(ctx, obj),
+			c:   g.ClusterClient,
+		}
+	}
+
+	return ops
+}
+
 func (g *Gateway) generateHelmValuesJSON() (*apiextensionsv1.JSON, error) {
 	values := g.generateHelmValues()
 	raw, err := json.Marshal(values)
@@ -141,8 +184,10 @@ func (g *Gateway) generateHelmValuesJSON() (*apiextensionsv1.JSON, error) {
 }
 
 func (g *Gateway) generateHelmValues() map[string]any {
+	var imagePullSecrets []fluxmeta.LocalObjectReference
 	images := map[string]any{}
 	if img := g.EnvoyConfig.Images; img != nil {
+		imagePullSecrets = img.ImagePullSecrets
 		if img.EnvoyGateway != "" {
 			images["envoyGateway"] = map[string]any{
 				"image": img.EnvoyGateway,
@@ -158,7 +203,7 @@ func (g *Gateway) generateHelmValues() map[string]any {
 	return map[string]any{
 		"global": map[string]any{
 			"images":           images,
-			"imagePullSecrets": g.PullSecrets,
+			"imagePullSecrets": imagePullSecrets,
 		},
 	}
 }

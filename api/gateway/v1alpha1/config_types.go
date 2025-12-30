@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"github.com/fluxcd/pkg/apis/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -11,6 +12,9 @@ type GatewayServiceConfigSpec struct {
 
 	// Clusters that should be included in the gateway configuration.
 	Clusters []ClusterTerm `json:"clusters,omitempty"`
+
+	// Gateway configuration.
+	Gateway *GatewayConfig `json:"gateway,omitempty"`
 
 	// DNS configuration.
 	DNS DNSConfig `json:"dns"`
@@ -49,6 +53,12 @@ type EnvoyGatewayConfig struct {
 
 	// Chart configuration for Envoy Gateway.
 	Chart EnvoyGatewayChart `json:"chart"`
+
+	// IPFamily specifies the IP family for the Envoy Proxy deployment.
+	// Accepted values are "IPv4", "IPv6", and "DualStack".
+	// +kubebuilder:validation:Enum=IPv4;IPv6;DualStack
+	// +optional
+	IPFamily *string `json:"ipFamily,omitempty"`
 }
 
 type EnvoyGatewayChart struct {
@@ -60,6 +70,15 @@ type EnvoyGatewayChart struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	Tag string `json:"tag"`
+
+	// SecretRef specifies the Secret containing authentication credentials
+	// for the OCIRepository.
+	// For HTTP/S basic auth the secret must contain 'username' and 'password'
+	// fields.
+	// Support for TLS auth using the 'certFile' and 'keyFile', and/or 'caFile'
+	// keys is deprecated. Please use `.spec.certSecretRef` instead.
+	// +optional
+	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
 type ImagesConfig struct {
@@ -71,6 +90,17 @@ type ImagesConfig struct {
 
 	// Ratelimit image. Example: docker.io/envoyproxy/ratelimit:e74a664a
 	Ratelimit string `json:"rateLimit"`
+
+	// ImagePullSecrets specifies the Secrets containing authentication credentials
+	// for the Envoy Gateway deployment.
+	// +optional
+	ImagePullSecrets []meta.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+}
+
+type GatewayConfig struct {
+	// TLSPort is the port on which the gateway will listen for TLS traffic.
+	// +kubebuilder:default=9443
+	TLSPort int32 `json:"tlsPort,omitempty"`
 }
 
 type DNSConfig struct {

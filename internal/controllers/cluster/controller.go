@@ -228,10 +228,10 @@ func (r *ClusterReconciler) buildGatewayManager(ctx context.Context, req reconci
 	gw := &envoy.Gateway{
 		Cluster:        c,
 		EnvoyConfig:    r.Config.Spec.EnvoyGateway,
+		GatewayConfig:  r.Config.Spec.Gateway,
 		DNSConfig:      r.Config.Spec.DNS,
 		PlatformClient: r.PlatformCluster.Client(),
 		ClusterClient:  access.Client(),
-		PullSecrets:    []corev1.LocalObjectReference{}, // TODO
 		FluxKubeconfig: &fluxmeta.KubeConfigReference{
 			SecretRef: &fluxmeta.SecretKeyReference{
 				Name: ar.Status.SecretRef.Name,
