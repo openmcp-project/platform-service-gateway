@@ -8,10 +8,9 @@ import (
 	clustersv1alpha1 "github.com/openmcp-project/openmcp-operator/api/clusters/v1alpha1"
 	openmcpconst "github.com/openmcp-project/openmcp-operator/api/constants"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/openmcp-project/platform-service-gateway/api/crds"
-	providerscheme "github.com/openmcp-project/platform-service-gateway/api/install"
+	"github.com/openmcp-project/platform-service-gateway/internal/schemes"
 )
 
 func NewInitCommand(so *SharedOptions) *cobra.Command {
@@ -56,7 +55,7 @@ func (o *InitOptions) Complete(ctx context.Context) error {
 }
 
 func (o *InitOptions) Run(ctx context.Context) error {
-	if err := o.PlatformCluster.InitializeClient(providerscheme.InstallCRDAPIs(runtime.NewScheme())); err != nil {
+	if err := o.PlatformCluster.InitializeClient(schemes.Platform); err != nil {
 		return err
 	}
 
