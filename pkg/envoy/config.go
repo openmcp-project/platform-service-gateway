@@ -7,12 +7,10 @@ import (
 	"strconv"
 	"time"
 
-	fluxmeta "github.com/fluxcd/pkg/apis/meta"
+	egv1a1 "github.com/envoyproxy/gateway/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -26,11 +24,12 @@ var (
 )
 
 const (
-	gatewayClassName     = "envoy-gateway"
-	gatewayName          = "default"
-	gatewayNamespace     = "openmcp-system"
-	tlsPortAnnotation    = "gateway.openmcp.cloud/tls-port"
-	baseDomainAnnotation = "dns.openmcp.cloud/base-domain"
+	gatewayClassName           = "envoy-gateway"
+	gatewayClassControllerName = "gateway.envoyproxy.io/gatewayclass-controller"
+	gatewayName                = "default"
+	gatewayNamespace           = "openmcp-system"
+	tlsPortAnnotation          = "gateway.openmcp.cloud/tls-port"
+	baseDomainAnnotation       = "dns.openmcp.cloud/base-domain"
 )
 
 func (g *Gateway) Configure(ctx context.Context) error {
@@ -85,7 +84,7 @@ func getGatewayClass() *gatewayv1.GatewayClass {
 
 //nolint:unparam
 func reconcileGatewayClassFunc(obj *gatewayv1.GatewayClass) func() error {
-	obj.Spec.ControllerName = "gateway.envoyproxy.io/gatewayclass-controller"
+	obj.Spec.ControllerName = gatewayClassControllerName
 	return nil
 }
 
@@ -148,46 +147,42 @@ func (g *Gateway) getTLSPort() int32 {
 
 // ----- EnvoyProxy -----
 
-func getEnvoyProxy() *unstructured.Unstructured {
-	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "gateway.envoyproxy.io",
-		Version: "v1alpha1",
-		Kind:    "EnvoyProxy",
-	})
-	obj.SetName(gatewayName)
-	obj.SetNamespace(gatewayNamespace)
-	return obj
+func getEnvoyProxy() *egv1a1.EnvoyProxy {
+	return &egv1a1.EnvoyProxy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      gatewayName,
+			Namespace: gatewayNamespace,
+		},
+	}
 }
 
-func (g *Gateway) reconcileEnvoyProxyFunc(obj *unstructured.Unstructured) func() error {
+func (g *Gateway) reconcileEnvoyProxyFunc(obj *egv1a1.EnvoyProxy) func() error {
 	return func() error {
-		var container map[string]any
-		var imagePullSecrets []fluxmeta.LocalObjectReference
+		var image *string
+		var imagePullSecrets []corev1.LocalObjectReference
 
 		if img := g.EnvoyConfig.Images; img != nil {
 			imagePullSecrets = img.ImagePullSecrets
 			if img.EnvoyProxy != "" {
-				container = map[string]any{
-					"image": img.EnvoyProxy,
-				}
+				image = &img.EnvoyProxy
 			}
 		}
 
-		obj.Object["spec"] = map[string]any{
-			"ipFamily": g.EnvoyConfig.IPFamily,
-			"provider": map[string]any{
-				"type": "Kubernetes",
-				"kubernetes": map[string]any{
-					"envoyDeployment": map[string]any{
-						"container": container,
-						"pod": map[string]any{
-							"imagePullSecrets": imagePullSecrets,
-						},
+		obj.Spec.IPFamily = g.EnvoyConfig.IPFamily
+		obj.Spec.Provider = &egv1a1.EnvoyProxyProvider{
+			Type: egv1a1.EnvoyProxyProviderTypeKubernetes,
+			Kubernetes: &egv1a1.EnvoyProxyKubernetesProvider{
+				EnvoyDeployment: &egv1a1.KubernetesDeploymentSpec{
+					Pod: &egv1a1.KubernetesPodSpec{
+						ImagePullSecrets: imagePullSecrets,
+					},
+					Container: &egv1a1.KubernetesContainerSpec{
+						Image: image,
 					},
 				},
 			},
 		}
+
 		return nil
 	}
 }

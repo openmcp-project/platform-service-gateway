@@ -1,7 +1,9 @@
 package v1alpha1
 
 import (
+	egv1a1 "github.com/envoyproxy/gateway/api/v1alpha1"
 	"github.com/fluxcd/pkg/apis/meta"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -58,7 +60,7 @@ type EnvoyGatewayConfig struct {
 	// Accepted values are "IPv4", "IPv6", and "DualStack".
 	// +kubebuilder:validation:Enum=IPv4;IPv6;DualStack
 	// +optional
-	IPFamily *string `json:"ipFamily,omitempty"`
+	IPFamily *egv1a1.IPFamily `json:"ipFamily,omitempty"`
 }
 
 type EnvoyGatewayChart struct {
@@ -94,7 +96,7 @@ type ImagesConfig struct {
 	// ImagePullSecrets specifies the Secrets containing authentication credentials
 	// for the Envoy Gateway deployment.
 	// +optional
-	ImagePullSecrets []meta.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 }
 
 type GatewayConfig struct {

@@ -3,6 +3,7 @@ package schemes
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
+	egv1a1 "github.com/envoyproxy/gateway/api/v1alpha1"
 	fluxhelmv2 "github.com/fluxcd/helm-controller/api/v2"
 	fluxsourcev1 "github.com/fluxcd/source-controller/api/v1"
 	providerv1alpha1 "github.com/openmcp-project/openmcp-operator/api/provider/v1alpha1"
@@ -28,4 +29,5 @@ func init() {
 	// Install APIs into Target scheme
 	utilruntime.Must(clientgoscheme.AddToScheme(Target))
 	utilruntime.Must(gatewayv1.Install(Target))
+	utilruntime.Must(egv1a1.AddToScheme(Target))
 }
