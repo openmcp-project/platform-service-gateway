@@ -184,7 +184,7 @@ func (g *Gateway) generateHelmValuesJSON() (*apiextensionsv1.JSON, error) {
 }
 
 func (g *Gateway) generateHelmValues() map[string]any {
-	var imagePullSecrets []fluxmeta.LocalObjectReference
+	var imagePullSecrets []corev1.LocalObjectReference
 	images := map[string]any{}
 	if img := g.EnvoyConfig.Images; img != nil {
 		imagePullSecrets = img.ImagePullSecrets

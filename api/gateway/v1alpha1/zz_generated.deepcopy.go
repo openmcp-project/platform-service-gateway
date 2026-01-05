@@ -5,7 +5,9 @@
 package v1alpha1
 
 import (
+	apiv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
 	"github.com/fluxcd/pkg/apis/meta"
+	v1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -117,7 +119,7 @@ func (in *EnvoyGatewayConfig) DeepCopyInto(out *EnvoyGatewayConfig) {
 	in.Chart.DeepCopyInto(&out.Chart)
 	if in.IPFamily != nil {
 		in, out := &in.IPFamily, &out.IPFamily
-		*out = new(string)
+		*out = new(apiv1alpha1.IPFamily)
 		**out = **in
 	}
 }
@@ -239,7 +241,7 @@ func (in *ImagesConfig) DeepCopyInto(out *ImagesConfig) {
 	*out = *in
 	if in.ImagePullSecrets != nil {
 		in, out := &in.ImagePullSecrets, &out.ImagePullSecrets
-		*out = make([]meta.LocalObjectReference, len(*in))
+		*out = make([]v1.LocalObjectReference, len(*in))
 		copy(*out, *in)
 	}
 }
