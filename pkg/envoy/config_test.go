@@ -4,13 +4,14 @@ import (
 	"testing"
 
 	egv1a1 "github.com/envoyproxy/gateway/api/v1alpha1"
-	"github.com/openmcp-project/platform-service-gateway/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
+
+	"github.com/openmcp-project/platform-service-gateway/pkg/utils"
 )
 
 func Test_Gateway_Configure(t *testing.T) {
