@@ -3,7 +3,7 @@ module github.com/openmcp-project/platform-service-gateway/api
 go 1.25.5
 
 require (
-	github.com/fluxcd/pkg/apis/meta v1.23.0
+	github.com/fluxcd/pkg/apis/meta v1.24.0
 	github.com/openmcp-project/controller-utils v0.24.0
 	github.com/openmcp-project/openmcp-operator/api v0.17.1
 	k8s.io/apiextensions-apiserver v0.35.0
