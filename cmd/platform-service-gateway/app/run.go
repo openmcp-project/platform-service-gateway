@@ -258,7 +258,7 @@ func (o *RunOptions) Run(ctx context.Context) error {
 		}
 		return fmt.Errorf("error getting GatewayServiceConfig '%s': %w", o.ProviderName, err)
 	}
-	if err := cluster.NewClusterReconciler(o.PlatformCluster, mgr.GetEventRecorderFor(cluster.ControllerName), svcConfig, o.ProviderName, o.ProviderNamespace).SetupWithManager(mgr); err != nil {
+	if err := cluster.NewClusterReconciler(o.PlatformCluster, mgr.GetEventRecorder(cluster.ControllerName), svcConfig, o.ProviderName, o.ProviderNamespace).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to add Cluster reconciler to manager: %w", err)
 	}
 

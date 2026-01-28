@@ -19,7 +19,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -44,6 +44,9 @@ const (
 	reasonGatewayInstalled   = "GatewayInstalled"
 	reasonGatewayUninstalled = "GatewayUninstalled"
 
+	actionInstallGateway   = "InstallGateway"
+	actionUninstallGateway = "UninstallGateway"
+
 	clusterId = "cluster"
 
 	ControllerName = "GatewayCluster"
@@ -52,13 +55,13 @@ const (
 type ClusterReconciler struct {
 	PlatformCluster         *clusters.Cluster
 	Config                  *gatewayv1alpha1.GatewayServiceConfig
-	eventRecorder           record.EventRecorder
+	eventRecorder           events.EventRecorder
 	ProviderName            string
 	ProviderNamespace       string
 	ClusterAccessReconciler accesslib.ClusterAccessReconciler
 }
 
-func NewClusterReconciler(platformCluster *clusters.Cluster, recorder record.EventRecorder, cfg *gatewayv1alpha1.GatewayServiceConfig, providerName, providerNamespace string) *ClusterReconciler {
+func NewClusterReconciler(platformCluster *clusters.Cluster, recorder events.EventRecorder, cfg *gatewayv1alpha1.GatewayServiceConfig, providerName, providerNamespace string) *ClusterReconciler {
 	return &ClusterReconciler{
 		PlatformCluster:   platformCluster,
 		eventRecorder:     recorder,
@@ -153,7 +156,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, req reconcile.Request
 		// delete gateway resources
 		if err := gwMgr.Cleanup(ctx); err != nil {
 			if utils.IsRemainingResourcesError(err) {
-				r.eventRecorder.Event(c, corev1.EventTypeNormal, reasonRemainingResources, err.Error())
+				r.eventRecorder.Eventf(c, nil, corev1.EventTypeNormal, reasonRemainingResources, actionUninstallGateway, err.Error())
 			}
 			return ctrl.Result{}, err
 		}
@@ -161,7 +164,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, req reconcile.Request
 		// uninstall gateway
 		if err := gwMgr.Uninstall(ctx); err != nil {
 			if utils.IsRemainingResourcesError(err) {
-				r.eventRecorder.Event(c, corev1.EventTypeNormal, reasonRemainingResources, err.Error())
+				r.eventRecorder.Eventf(c, nil, corev1.EventTypeNormal, reasonRemainingResources, actionUninstallGateway, err.Error())
 			}
 			return ctrl.Result{}, err
 		}
@@ -172,7 +175,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, req reconcile.Request
 			}
 		}
 
-		r.eventRecorder.Event(c, corev1.EventTypeNormal, reasonGatewayUninstalled, "Gateway uninstalled successfully")
+		r.eventRecorder.Eventf(c, nil, corev1.EventTypeNormal, reasonGatewayUninstalled, actionUninstallGateway, "Gateway uninstalled successfully")
 		return ctrl.Result{}, nil
 	}
 
@@ -189,7 +192,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, req reconcile.Request
 		return ctrl.Result{}, err
 	}
 
-	r.eventRecorder.Event(c, corev1.EventTypeNormal, reasonGatewayInstalled, "Gateway installed successfully")
+	r.eventRecorder.Eventf(c, nil, corev1.EventTypeNormal, reasonGatewayInstalled, actionInstallGateway, "Gateway installed successfully")
 	return ctrl.Result{RequeueAfter: 1 * time.Hour}, nil
 }
 
