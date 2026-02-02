@@ -169,6 +169,15 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, req reconcile.Request
 			return ctrl.Result{}, err
 		}
 
+		result, err := r.ClusterAccessReconciler.ReconcileDelete(ctx, req)
+		if err != nil {
+			log.Error(err, "failed to reconcile access/cluster request deletion")
+			return result, err
+		}
+		if result.RequeueAfter > 0 {
+			return result, nil
+		}
+
 		if controllerutil.RemoveFinalizer(c, gatewayv1alpha1.GatewayFinalizerOnCluster) {
 			if err := r.PlatformCluster.Client().Update(ctx, c); err != nil {
 				return ctrl.Result{}, err
