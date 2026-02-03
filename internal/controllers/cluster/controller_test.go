@@ -13,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -222,7 +222,7 @@ func Test_ClusterReconciler_Reconcile(t *testing.T) {
 
 			cr := &ClusterReconciler{
 				PlatformCluster:   clusters.NewTestClusterFromClient("platform", platformClient),
-				eventRecorder:     record.NewFakeRecorder(100),
+				eventRecorder:     events.NewFakeRecorder(100),
 				ProviderName:      "test",
 				ProviderNamespace: "test",
 				Config: &gatewayv1alpha1.GatewayServiceConfig{
