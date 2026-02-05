@@ -162,12 +162,23 @@ func Test_shouldReconcile(t *testing.T) {
 	}
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
-			r := &ClusterReconciler{
-				Config: &gatewayv1alpha1.GatewayServiceConfig{
-					Spec: gatewayv1alpha1.GatewayServiceConfigSpec{
-						Clusters: terms,
+			platformClient := fake.NewClientBuilder().
+				WithScheme(schemes.Platform).
+				WithObjects(
+					&gatewayv1alpha1.GatewayServiceConfig{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "gateway",
+						},
+						Spec: gatewayv1alpha1.GatewayServiceConfigSpec{
+							Clusters: terms,
+						},
 					},
-				},
+				).
+				Build()
+
+			r := &ClusterReconciler{
+				PlatformCluster: clusters.NewTestClusterFromClient("test", platformClient),
+				ProviderName:    "gateway",
 			}
 
 			actual := r.shouldReconcile(tC.cluster)
@@ -196,6 +207,14 @@ func Test_ClusterReconciler_Reconcile(t *testing.T) {
 			desc: "should not return error when object exist",
 			req:  reqSample,
 			platformInitObjs: []client.Object{
+				&gatewayv1alpha1.GatewayServiceConfig{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "gateway",
+					},
+					Spec: gatewayv1alpha1.GatewayServiceConfigSpec{
+						Clusters: terms,
+					},
+				},
 				&clustersv1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      reqSample.Name,
@@ -223,13 +242,8 @@ func Test_ClusterReconciler_Reconcile(t *testing.T) {
 			cr := &ClusterReconciler{
 				PlatformCluster:   clusters.NewTestClusterFromClient("platform", platformClient),
 				eventRecorder:     events.NewFakeRecorder(100),
-				ProviderName:      "test",
+				ProviderName:      "gateway",
 				ProviderNamespace: "test",
-				Config: &gatewayv1alpha1.GatewayServiceConfig{
-					Spec: gatewayv1alpha1.GatewayServiceConfigSpec{
-						Clusters: terms,
-					},
-				},
 				ClusterAccessReconciler: accesslib.NewClusterAccessReconciler(platformClient, ControllerName).
 					WithFakeClientGenerator(func(ctx context.Context, kcfgData []byte, scheme *runtime.Scheme, additionalData ...any) (client.Client, error) {
 						return clusterClient, nil
