@@ -250,7 +250,7 @@ func (o *RunOptions) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to create manager: %w", err)
 	}
-
+	// just make sure the config is present, we will get it later during reconciliation
 	svcConfig := &v1alpha1.GatewayServiceConfig{}
 	if err := o.PlatformCluster.Client().Get(ctx, types.NamespacedName{Name: o.ProviderName}, svcConfig); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -258,7 +258,7 @@ func (o *RunOptions) Run(ctx context.Context) error {
 		}
 		return fmt.Errorf("error getting GatewayServiceConfig '%s': %w", o.ProviderName, err)
 	}
-	if err := cluster.NewClusterReconciler(o.PlatformCluster, mgr.GetEventRecorder(cluster.ControllerName), svcConfig, o.ProviderName, o.ProviderNamespace).SetupWithManager(mgr); err != nil {
+	if err := cluster.NewClusterReconciler(o.PlatformCluster, mgr.GetEventRecorder(cluster.ControllerName), o.ProviderName, o.ProviderNamespace).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to add Cluster reconciler to manager: %w", err)
 	}
 

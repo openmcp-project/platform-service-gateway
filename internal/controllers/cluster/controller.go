@@ -21,7 +21,9 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
@@ -54,20 +56,18 @@ const (
 
 type ClusterReconciler struct {
 	PlatformCluster         *clusters.Cluster
-	Config                  *gatewayv1alpha1.GatewayServiceConfig
 	eventRecorder           events.EventRecorder
 	ProviderName            string
 	ProviderNamespace       string
 	ClusterAccessReconciler accesslib.ClusterAccessReconciler
 }
 
-func NewClusterReconciler(platformCluster *clusters.Cluster, recorder events.EventRecorder, cfg *gatewayv1alpha1.GatewayServiceConfig, providerName, providerNamespace string) *ClusterReconciler {
+func NewClusterReconciler(platformCluster *clusters.Cluster, recorder events.EventRecorder, providerName, providerNamespace string) *ClusterReconciler {
 	return &ClusterReconciler{
 		PlatformCluster:   platformCluster,
 		eventRecorder:     recorder,
 		ProviderName:      providerName,
 		ProviderNamespace: providerNamespace,
-		Config:            cfg,
 		ClusterAccessReconciler: accesslib.NewClusterAccessReconciler(platformCluster.Client(), ControllerName).
 			WithManagedLabels(func(controllerName string, req reconcile.Request, _ accesslib.ClusterRegistration) (string, string, map[string]string) {
 				return fmt.Sprintf("%s.%s", providerName, controllerName), req.Name, nil
@@ -209,6 +209,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, req reconcile.Request
 func (r *ClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.Cluster{}).
+		Watches(&gatewayv1alpha1.GatewayServiceConfig{}, r.mapGatewayServiceConfigToClusters()).
 		Complete(r)
 }
 
@@ -237,11 +238,16 @@ func (r *ClusterReconciler) buildGatewayManager(ctx context.Context, req reconci
 	clusterClient := access.Client()
 	utilruntime.Must(gatewayv1.Install(clusterClient.Scheme()))
 
+	cfg, err := r.getGatewayServiceConfig(ctx, r.ProviderName)
+	if err != nil {
+		return nil, err
+	}
+
 	gw := &envoy.Gateway{
 		Cluster:        c,
-		EnvoyConfig:    r.Config.Spec.EnvoyGateway,
-		GatewayConfig:  r.Config.Spec.Gateway,
-		DNSConfig:      r.Config.Spec.DNS,
+		EnvoyConfig:    cfg.Spec.EnvoyGateway,
+		GatewayConfig:  cfg.Spec.Gateway,
+		DNSConfig:      cfg.Spec.DNS,
 		PlatformClient: r.PlatformCluster.Client(),
 		ClusterClient:  access.Client(),
 		FluxKubeconfig: &fluxmeta.KubeConfigReference{
@@ -259,7 +265,13 @@ func (r *ClusterReconciler) shouldReconcile(cluster *clustersv1alpha1.Cluster) b
 }
 
 func (r *ClusterReconciler) enabledForCluster(cluster *clustersv1alpha1.Cluster) bool {
-	for _, ct := range r.Config.Spec.Clusters {
+	ctx := context.Background()
+	cfg, err := r.getGatewayServiceConfig(ctx, r.ProviderName)
+	if err != nil {
+		return false
+	}
+
+	for _, ct := range cfg.Spec.Clusters {
 		if ct.ClusterRef != nil && refMatches(*ct.ClusterRef, cluster) {
 			return true
 		}
@@ -304,4 +316,51 @@ func labelsMatch(labels map[string]string, cluster *clustersv1alpha1.Cluster) bo
 		}
 	}
 	return true
+}
+
+// mapGatewayServiceConfigToClusters returns an event handler that maps GatewayServiceConfig updates to reconciliation requests for matching  clusters.
+func (r *ClusterReconciler) mapGatewayServiceConfigToClusters() handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
+		log := logging.FromContextOrPanic(ctx)
+
+		gatewayServiceConfig, ok := obj.(*gatewayv1alpha1.GatewayServiceConfig)
+		if !ok {
+			return []reconcile.Request{}
+		}
+		// required
+		if gatewayServiceConfig.Name != r.ProviderName {
+			return []reconcile.Request{}
+		}
+
+		log.Info("GatewayServiceConfig was updated, re-enqueueing matching cluster resources", "configName", gatewayServiceConfig.Name)
+
+		clusters := &clustersv1alpha1.ClusterList{}
+		if err := r.PlatformCluster.Client().List(ctx, clusters); err != nil {
+			log.Error(err, "failed to list clusters")
+			return []reconcile.Request{}
+		}
+
+		var requests []reconcile.Request
+		for _, cluster := range clusters.Items {
+			if r.shouldReconcile(&cluster) {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      cluster.Name,
+						Namespace: cluster.Namespace,
+					},
+				})
+			}
+		}
+		return requests
+	})
+}
+
+// getGatewayServiceConfig fetches the GatewayServiceConfig by name.
+func (r *ClusterReconciler) getGatewayServiceConfig(ctx context.Context, gscName string) (*gatewayv1alpha1.GatewayServiceConfig, error) {
+	config := &gatewayv1alpha1.GatewayServiceConfig{}
+	err := r.PlatformCluster.Client().Get(ctx, types.NamespacedName{Name: gscName}, config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get GatewayServiceConfig '%s': %w", gscName, err)
+	}
+	return config, nil
 }
