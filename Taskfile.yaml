@@ -9,7 +9,7 @@ includes:
       NESTED_MODULES: api
       API_DIRS: '{{.ROOT_DIR}}/api/...'
       MANIFEST_OUT: '{{.ROOT_DIR}}/api/crds/manifests'
-      CODE_DIRS: '{{.ROOT_DIR}}/cmd/... {{.ROOT_DIR}}/internal/... {{.ROOT_DIR}}/api/...'
+      CODE_DIRS: '{{.ROOT_DIR}}/cmd/... {{.ROOT_DIR}}/internal/... {{.ROOT_DIR}}/api/... {{.ROOT_DIR}}/pkg/...'
       COMPONENTS: platform-service-gateway
       REPO_URL: 'https://github.com/openmcp-project/platform-service-gateway'
       GENERATE_DOCS_INDEX: "false"

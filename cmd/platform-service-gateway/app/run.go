@@ -11,7 +11,6 @@ import (
 
 	openmcpconst "github.com/openmcp-project/openmcp-operator/api/constants"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
@@ -20,16 +19,9 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-
 	"github.com/openmcp-project/platform-service-gateway/api/gateway/v1alpha1"
-	providerscheme "github.com/openmcp-project/platform-service-gateway/api/install"
 	"github.com/openmcp-project/platform-service-gateway/internal/controllers/cluster"
-
-	fluxhelmv2 "github.com/fluxcd/helm-controller/api/v2"
-	fluxsourcev1 "github.com/fluxcd/source-controller/api/v1"
-	providerv1alpha1 "github.com/openmcp-project/openmcp-operator/api/provider/v1alpha1"
-	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
+	"github.com/openmcp-project/platform-service-gateway/internal/schemes"
 
 	"github.com/openmcp-project/controller-utils/pkg/logging"
 )
@@ -204,18 +196,8 @@ func (o *RunOptions) Complete(ctx context.Context) error {
 	return nil
 }
 
-func getScheme() *runtime.Scheme {
-	scheme := runtime.NewScheme()
-	providerscheme.InstallOperatorAPIsPlatform(scheme)
-	utilruntime.Must(providerv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(fluxsourcev1.AddToScheme(scheme))
-	utilruntime.Must(fluxhelmv2.AddToScheme(scheme))
-	utilruntime.Must(gatewayv1.Install(scheme))
-	return scheme
-}
-
 func (o *RunOptions) Run(ctx context.Context) error {
-	if err := o.PlatformCluster.InitializeClient(getScheme()); err != nil {
+	if err := o.PlatformCluster.InitializeClient(schemes.Platform); err != nil {
 		return err
 	}
 

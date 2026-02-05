@@ -39,7 +39,7 @@ func TestObjectIdentifier(t *testing.T) {
 		{
 			desc:     "EnvoyProxy (unstructured)",
 			obj:      unstructuredObj(),
-			expected: "Gateway/bar/foo",
+			expected: "EnvoyProxy/bar/foo",
 		},
 	}
 	for _, tC := range testCases {

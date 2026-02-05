@@ -18,16 +18,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	gatewayv1alpha1 "github.com/openmcp-project/platform-service-gateway/api/gateway/v1alpha1"
+	"github.com/openmcp-project/platform-service-gateway/internal/schemes"
 	"github.com/openmcp-project/platform-service-gateway/pkg/envoy"
 	"github.com/openmcp-project/platform-service-gateway/pkg/utils"
 )
@@ -82,6 +81,7 @@ func NewClusterReconciler(platformCluster *clusters.Cluster, recorder events.Eve
 					},
 				}).
 				WithNamespaceGenerator(accesslib.RequestNamespaceGenerator).
+				WithScheme(schemes.Target).
 				Build(),
 			),
 	}
@@ -234,9 +234,6 @@ func (r *ClusterReconciler) buildGatewayManager(ctx context.Context, req reconci
 	if err != nil {
 		return nil, errors.Join(errFailedToGetClusterAccess, err)
 	}
-
-	clusterClient := access.Client()
-	utilruntime.Must(gatewayv1.Install(clusterClient.Scheme()))
 
 	cfg, err := r.getGatewayServiceConfig(ctx, r.ProviderName)
 	if err != nil {
