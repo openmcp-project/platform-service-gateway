@@ -1,6 +1,6 @@
 module github.com/openmcp-project/platform-service-gateway
 
-go 1.25.7
+go 1.26.0
 
 replace github.com/openmcp-project/platform-service-gateway/api => ./api
 
