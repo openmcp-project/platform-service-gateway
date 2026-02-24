@@ -43,9 +43,8 @@ func (g *Gateway) InstallOrUpdate(ctx context.Context) error {
 
 	imagePullSecretOps := g.ensureSecrets(ctx, deploymentNamespace)
 
-	ops := []applyOperation{
-		ensureNamespace(deploymentNamespace, g.ClusterClient),
-	}
+	ops := make([]applyOperation, 0, 3+len(imagePullSecretOps))
+	ops = append(ops, ensureNamespace(deploymentNamespace, g.ClusterClient))
 	ops = append(ops, imagePullSecretOps...)
 	ops = append(ops,
 		applyOperation{
