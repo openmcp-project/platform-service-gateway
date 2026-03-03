@@ -6,7 +6,7 @@ replace github.com/openmcp-project/platform-service-gateway/api => ./api
 
 require (
 	github.com/envoyproxy/gateway v1.7.0
-	github.com/fluxcd/helm-controller/api v1.5.0
+	github.com/fluxcd/helm-controller/api v1.5.1
 	github.com/fluxcd/pkg/apis/meta v1.25.0
 	github.com/fluxcd/source-controller/api v1.8.0
 	github.com/go-logr/logr v1.4.3
