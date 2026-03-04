@@ -21,6 +21,7 @@ var (
 
 func init() {
 	// Install APIs into Platform scheme
+	providerscheme.InstallCRDAPIs(Platform)
 	providerscheme.InstallOperatorAPIsPlatform(Platform)
 	utilruntime.Must(providerv1alpha1.AddToScheme(Platform))
 	utilruntime.Must(fluxsourcev1.AddToScheme(Platform))
