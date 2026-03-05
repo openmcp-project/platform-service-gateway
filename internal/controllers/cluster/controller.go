@@ -207,9 +207,10 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, req reconcile.Request
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	log := logging.Wrap(mgr.GetLogger()).WithName(ControllerName)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.Cluster{}).
-		Watches(&gatewayv1alpha1.GatewayServiceConfig{}, r.mapGatewayServiceConfigToClusters()).
+		Watches(&gatewayv1alpha1.GatewayServiceConfig{}, r.mapGatewayServiceConfigToClusters(log)).
 		Complete(r)
 }
 
@@ -316,10 +317,8 @@ func labelsMatch(labels map[string]string, cluster *clustersv1alpha1.Cluster) bo
 }
 
 // mapGatewayServiceConfigToClusters returns an event handler that maps GatewayServiceConfig updates to reconciliation requests for matching  clusters.
-func (r *ClusterReconciler) mapGatewayServiceConfigToClusters() handler.EventHandler {
+func (r *ClusterReconciler) mapGatewayServiceConfigToClusters(log logging.Logger) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
-		log := logging.FromContextOrPanic(ctx)
-
 		gatewayServiceConfig, ok := obj.(*gatewayv1alpha1.GatewayServiceConfig)
 		if !ok {
 			return []reconcile.Request{}
