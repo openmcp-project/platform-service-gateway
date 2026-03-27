@@ -10,6 +10,7 @@ import (
 	commonapi "github.com/openmcp-project/openmcp-operator/api/common"
 	accesslib "github.com/openmcp-project/openmcp-operator/lib/clusteraccess/advanced"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -185,6 +186,261 @@ func Test_shouldReconcile(t *testing.T) {
 			assert.Equal(t, tC.expected, actual)
 		})
 	}
+}
+
+func Test_isReferencedImagePullSecret(t *testing.T) {
+	testCases := []struct {
+		desc       string
+		cfg        *gatewayv1alpha1.GatewayServiceConfig
+		secretName string
+		expected   bool
+	}{
+		{
+			desc: "should match referenced ImagePullSecret",
+			cfg: &gatewayv1alpha1.GatewayServiceConfig{
+				Spec: gatewayv1alpha1.GatewayServiceConfigSpec{
+					EnvoyGateway: gatewayv1alpha1.EnvoyGatewayConfig{
+						Images: &gatewayv1alpha1.ImagesConfig{
+							ImagePullSecrets: []corev1.LocalObjectReference{
+								{Name: "my-secret"},
+							},
+						},
+					},
+				},
+			},
+			secretName: "my-secret",
+			expected:   true,
+		},
+		{
+			desc: "should not match unrelated secret",
+			cfg: &gatewayv1alpha1.GatewayServiceConfig{
+				Spec: gatewayv1alpha1.GatewayServiceConfigSpec{
+					EnvoyGateway: gatewayv1alpha1.EnvoyGatewayConfig{
+						Images: &gatewayv1alpha1.ImagesConfig{
+							ImagePullSecrets: []corev1.LocalObjectReference{
+								{Name: "my-secret"},
+							},
+						},
+					},
+				},
+			},
+			secretName: "other-secret",
+			expected:   false,
+		},
+		{
+			desc: "should not match when no images configured",
+			cfg: &gatewayv1alpha1.GatewayServiceConfig{
+				Spec: gatewayv1alpha1.GatewayServiceConfigSpec{},
+			},
+			secretName: "my-secret",
+			expected:   false,
+		},
+		{
+			desc: "should not match when no ImagePullSecrets configured",
+			cfg: &gatewayv1alpha1.GatewayServiceConfig{
+				Spec: gatewayv1alpha1.GatewayServiceConfigSpec{
+					EnvoyGateway: gatewayv1alpha1.EnvoyGatewayConfig{
+						Images: &gatewayv1alpha1.ImagesConfig{},
+					},
+				},
+			},
+			secretName: "my-secret",
+			expected:   false,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			actual := isReferencedImagePullSecret(tC.cfg, tC.secretName)
+			assert.Equal(t, tC.expected, actual)
+		})
+	}
+}
+
+func Test_mapSecretToClusters(t *testing.T) {
+	const (
+		secretName   = "my-pull-secret"
+		clusterNs    = "test-ns"
+		providerName = "gateway"
+	)
+
+	testCases := []struct {
+		desc          string
+		secret        *corev1.Secret
+		platformObjs  []client.Object
+		expectedCount int
+	}{
+		{
+			desc: "should enqueue clusters when referenced ImagePullSecret changes",
+			secret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      secretName,
+					Namespace: clusterNs,
+				},
+			},
+			platformObjs: []client.Object{
+				&gatewayv1alpha1.GatewayServiceConfig{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: providerName,
+					},
+					Spec: gatewayv1alpha1.GatewayServiceConfigSpec{
+						EnvoyGateway: gatewayv1alpha1.EnvoyGatewayConfig{
+							Images: &gatewayv1alpha1.ImagesConfig{
+								ImagePullSecrets: []corev1.LocalObjectReference{
+									{Name: secretName},
+								},
+							},
+						},
+						Clusters: []gatewayv1alpha1.ClusterTerm{
+							{Selector: &gatewayv1alpha1.ClusterSelector{MatchPurpose: "platform"}},
+						},
+					},
+				},
+				&clustersv1alpha1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "cluster-1",
+						Namespace: clusterNs,
+					},
+					Spec: clustersv1alpha1.ClusterSpec{
+						Purposes: []string{"platform"},
+					},
+				},
+				&clustersv1alpha1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "cluster-2",
+						Namespace: clusterNs,
+					},
+					Spec: clustersv1alpha1.ClusterSpec{
+						Purposes: []string{"platform"},
+					},
+				},
+			},
+			expectedCount: 2,
+		},
+		{
+			desc: "should not enqueue clusters for unrelated secret",
+			secret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "unrelated-secret",
+					Namespace: clusterNs,
+				},
+			},
+			platformObjs: []client.Object{
+				&gatewayv1alpha1.GatewayServiceConfig{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: providerName,
+					},
+					Spec: gatewayv1alpha1.GatewayServiceConfigSpec{
+						EnvoyGateway: gatewayv1alpha1.EnvoyGatewayConfig{
+							Images: &gatewayv1alpha1.ImagesConfig{
+								ImagePullSecrets: []corev1.LocalObjectReference{
+									{Name: secretName},
+								},
+							},
+						},
+						Clusters: []gatewayv1alpha1.ClusterTerm{
+							{Selector: &gatewayv1alpha1.ClusterSelector{MatchPurpose: "platform"}},
+						},
+					},
+				},
+				&clustersv1alpha1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "cluster-1",
+						Namespace: clusterNs,
+					},
+					Spec: clustersv1alpha1.ClusterSpec{
+						Purposes: []string{"platform"},
+					},
+				},
+			},
+			expectedCount: 0,
+		},
+		{
+			desc: "should not enqueue clusters in different namespace",
+			secret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      secretName,
+					Namespace: "other-ns",
+				},
+			},
+			platformObjs: []client.Object{
+				&gatewayv1alpha1.GatewayServiceConfig{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: providerName,
+					},
+					Spec: gatewayv1alpha1.GatewayServiceConfigSpec{
+						EnvoyGateway: gatewayv1alpha1.EnvoyGatewayConfig{
+							Images: &gatewayv1alpha1.ImagesConfig{
+								ImagePullSecrets: []corev1.LocalObjectReference{
+									{Name: secretName},
+								},
+							},
+						},
+						Clusters: []gatewayv1alpha1.ClusterTerm{
+							{Selector: &gatewayv1alpha1.ClusterSelector{MatchPurpose: "platform"}},
+						},
+					},
+				},
+				&clustersv1alpha1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "cluster-1",
+						Namespace: clusterNs,
+					},
+					Spec: clustersv1alpha1.ClusterSpec{
+						Purposes: []string{"platform"},
+					},
+				},
+			},
+			expectedCount: 0,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			platformClient := fake.NewClientBuilder().
+				WithScheme(schemes.Platform).
+				WithObjects(tC.platformObjs...).
+				Build()
+
+			r := &ClusterReconciler{
+				PlatformCluster: clusters.NewTestClusterFromClient("platform", platformClient),
+				ProviderName:    providerName,
+			}
+
+			ctx := context.Background()
+			requests := mapSecretToClusterRequests(ctx, r, tC.secret)
+			assert.Len(t, requests, tC.expectedCount)
+		})
+	}
+}
+
+// mapSecretToClusterRequests is a test helper that replicates the logic of mapSecretToClusters
+// to verify the mapping without needing to unwrap the handler.
+func mapSecretToClusterRequests(ctx context.Context, r *ClusterReconciler, secret *corev1.Secret) []reconcile.Request {
+	cfg, err := r.getGatewayServiceConfig(ctx, r.ProviderName)
+	if err != nil {
+		return nil
+	}
+
+	if !isReferencedImagePullSecret(cfg, secret.Name) {
+		return nil
+	}
+
+	clusterList := &clustersv1alpha1.ClusterList{}
+	if err := r.PlatformCluster.Client().List(ctx, clusterList, client.InNamespace(secret.Namespace)); err != nil {
+		return nil
+	}
+
+	var requests []reconcile.Request
+	for _, cluster := range clusterList.Items {
+		if r.shouldReconcile(&cluster) {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      cluster.Name,
+					Namespace: cluster.Namespace,
+				},
+			})
+		}
+	}
+	return requests
 }
 
 func Test_ClusterReconciler_Reconcile(t *testing.T) {
