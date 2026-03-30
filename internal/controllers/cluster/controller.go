@@ -211,6 +211,7 @@ func (r *ClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.Cluster{}).
 		Watches(&gatewayv1alpha1.GatewayServiceConfig{}, r.mapGatewayServiceConfigToClusters(log)).
+		Watches(&corev1.Secret{}, r.mapSecretToRequests(log)).
 		Complete(r)
 }
 
@@ -349,6 +350,59 @@ func (r *ClusterReconciler) mapGatewayServiceConfigToClusters(log logging.Logger
 		}
 		return requests
 	})
+}
+
+// mapSecretToRequests returns an event handler that maps ImagePullSecret updates to reconciliation requests for clusters in the same namespace.
+func (r *ClusterReconciler) mapSecretToRequests(log logging.Logger) handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
+		secret, ok := obj.(*corev1.Secret)
+		if !ok {
+			return nil
+		}
+
+		cfg, err := r.getGatewayServiceConfig(ctx, r.ProviderName)
+		if err != nil {
+			log.Error(err, "failed to get GatewayServiceConfig", "GatewayServiceConfigName", r.ProviderName)
+			return nil
+		}
+
+		if !isReferencedImagePullSecret(cfg, secret.Name) {
+			return nil
+		}
+
+		log.Info("ImagePullSecret was updated, re-enqueueing clusters in same namespace", "secretName", secret.Name, "namespace", secret.Namespace)
+
+		clusterList := &clustersv1alpha1.ClusterList{}
+		if err := r.PlatformCluster.Client().List(ctx, clusterList, client.InNamespace(secret.Namespace)); err != nil {
+			log.Error(err, "failed to list clusters")
+			return nil
+		}
+
+		var requests []reconcile.Request
+		for _, cluster := range clusterList.Items {
+			if r.shouldReconcile(&cluster) {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      cluster.Name,
+						Namespace: cluster.Namespace,
+					},
+				})
+			}
+		}
+		return requests
+	})
+}
+
+func isReferencedImagePullSecret(cfg *gatewayv1alpha1.GatewayServiceConfig, secretName string) bool {
+	if cfg.Spec.EnvoyGateway.Images == nil {
+		return false
+	}
+	for _, pullSecret := range cfg.Spec.EnvoyGateway.Images.ImagePullSecrets {
+		if pullSecret.Name == secretName {
+			return true
+		}
+	}
+	return false
 }
 
 // getGatewayServiceConfig fetches the GatewayServiceConfig by name.
