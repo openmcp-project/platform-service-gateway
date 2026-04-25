@@ -11,7 +11,7 @@ require (
 	github.com/fluxcd/source-controller/api v1.8.2
 	github.com/go-logr/logr v1.4.3
 	github.com/openmcp-project/controller-utils v0.27.1
-	github.com/openmcp-project/openmcp-operator/api v0.18.1
+	github.com/openmcp-project/openmcp-operator/api v0.19.0
 	github.com/openmcp-project/openmcp-operator/lib v0.18.1
 	github.com/openmcp-project/platform-service-gateway/api v0.0.10
 	github.com/spf13/cobra v1.10.2
