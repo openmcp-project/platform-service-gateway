@@ -5,6 +5,7 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // GatewayServiceConfigSpec defines the desired state of GatewayServiceConfig
@@ -138,5 +139,8 @@ type GatewayServiceConfigList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&GatewayServiceConfig{}, &GatewayServiceConfigList{})
+	SchemeBuilder.Register(func(scheme *runtime.Scheme) error {
+		scheme.AddKnownTypes(GroupVersion, &GatewayServiceConfig{}, &GatewayServiceConfigList{})
+		return nil
+	})
 }
