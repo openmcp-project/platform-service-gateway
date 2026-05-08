@@ -7,7 +7,7 @@ package v1alpha1
 import (
 	apiv1alpha1 "github.com/envoyproxy/gateway/api/v1alpha1"
 	"github.com/fluxcd/pkg/apis/meta"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
