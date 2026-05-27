@@ -10,9 +10,9 @@ require (
 	github.com/fluxcd/pkg/apis/meta v1.27.0
 	github.com/fluxcd/source-controller/api v1.8.4
 	github.com/go-logr/logr v1.4.3
-	github.com/openmcp-project/controller-utils v0.28.0
-	github.com/openmcp-project/openmcp-operator/api v0.19.1
-	github.com/openmcp-project/openmcp-operator/lib v0.19.1
+	github.com/openmcp-project/controller-utils v0.29.0
+	github.com/openmcp-project/openmcp-operator/api v0.20.0
+	github.com/openmcp-project/openmcp-operator/lib v0.20.0
 	github.com/openmcp-project/platform-service-gateway/api v0.0.10
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
