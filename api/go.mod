@@ -3,7 +3,7 @@ module github.com/openmcp-project/platform-service-gateway/api
 go 1.26.4
 
 require (
-	github.com/envoyproxy/gateway v1.8.0
+	github.com/envoyproxy/gateway v1.8.1
 	github.com/fluxcd/pkg/apis/meta v1.27.0
 	github.com/openmcp-project/controller-utils v0.28.0
 	github.com/openmcp-project/openmcp-operator/api v0.19.1
