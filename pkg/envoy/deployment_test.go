@@ -59,6 +59,9 @@ func (ts *testSetup) build() (clusterClient, platformClient client.WithWatch, g 
 			},
 			Images: &v1alpha1.ImagesConfig{
 				ImagePullSecrets: ts.imagePullSecrets,
+				EnvoyGateway:     testEnvoyGatewayImg,
+				Ratelimit:        testRatelimitImg,
+				EnvoyProxy:       testEnvoyProxyImg,
 			},
 		},
 	}
@@ -75,8 +78,11 @@ var (
 )
 
 const (
-	chartUrl = "oci://docker.io/envoyproxy/gateway-helm"
-	chartTag = "1.5.4"
+	chartUrl            = "oci://docker.io/envoyproxy/gateway-helm"
+	chartTag            = "1.5.4"
+	testEnvoyGatewayImg = "oci.local/gateway:v0.0.1"
+	testRatelimitImg    = "oci.local/ratelimit:v0.0.1"
+	testEnvoyProxyImg   = "oci.local/proxy:v0.0.1"
 )
 
 func Test_Gateway_InstallOrUpdate(t *testing.T) {
@@ -142,6 +148,70 @@ func Test_Gateway_InstallOrUpdate(t *testing.T) {
 					assert.NotEmpty(t, copied.Data[corev1.DockerConfigJsonKey])
 				}
 			}
+		})
+	}
+}
+
+func Test_Gateway_generateHelmValues_images(t *testing.T) {
+	testCases := []struct {
+		desc             string
+		envoyGatewayImg  string
+		ratelimitImg     string
+		envoyProxyImg    string
+		imagePullSecrets []corev1.LocalObjectReference
+		expectedGlobal   map[string]any
+	}{
+		{
+			desc:            "all images set",
+			envoyGatewayImg: testEnvoyGatewayImg,
+			ratelimitImg:    testRatelimitImg,
+			envoyProxyImg:   testEnvoyProxyImg,
+			imagePullSecrets: []corev1.LocalObjectReference{
+				{Name: "my-secret"},
+			},
+			expectedGlobal: map[string]any{
+				"images": map[string]any{
+					"envoyGateway": map[string]any{"image": testEnvoyGatewayImg},
+					"ratelimit":    map[string]any{"image": testRatelimitImg},
+					"envoyProxy":   map[string]any{"image": testEnvoyProxyImg},
+				},
+				"imagePullSecrets": []corev1.LocalObjectReference{
+					{Name: "my-secret"},
+				},
+			},
+		},
+		{
+			desc:            "only envoyGateway image set",
+			envoyGatewayImg: testEnvoyGatewayImg,
+			expectedGlobal: map[string]any{
+				"images": map[string]any{
+					"envoyGateway": map[string]any{"image": testEnvoyGatewayImg},
+				},
+				"imagePullSecrets": []corev1.LocalObjectReference(nil),
+			},
+		},
+		{
+			desc: "no images set",
+			expectedGlobal: map[string]any{
+				"images":           map[string]any{},
+				"imagePullSecrets": []corev1.LocalObjectReference(nil),
+			},
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			g := &Gateway{
+				EnvoyConfig: v1alpha1.EnvoyGatewayConfig{
+					Images: &v1alpha1.ImagesConfig{
+						EnvoyGateway:     tC.envoyGatewayImg,
+						Ratelimit:        tC.ratelimitImg,
+						EnvoyProxy:       tC.envoyProxyImg,
+						ImagePullSecrets: tC.imagePullSecrets,
+					},
+				},
+			}
+			values := g.generateHelmValues()
+			assert.Equal(t, tC.expectedGlobal, values["global"])
 		})
 	}
 }
