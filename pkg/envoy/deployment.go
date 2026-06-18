@@ -197,6 +197,11 @@ func (g *Gateway) generateHelmValues() map[string]any {
 				"image": img.Ratelimit,
 			}
 		}
+		if img.EnvoyProxy != "" {
+			images["envoyProxy"] = map[string]any{
+				"image": img.EnvoyProxy,
+			}
+		}
 	}
 
 	return map[string]any{
