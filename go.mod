@@ -13,7 +13,7 @@ require (
 	github.com/openmcp-project/controller-utils v0.29.1
 	github.com/openmcp-project/openmcp-operator/api v1.0.1
 	github.com/openmcp-project/openmcp-operator/lib v1.0.1
-	github.com/openmcp-project/platform-service-gateway/api v0.0.12
+	github.com/openmcp-project/platform-service-gateway/api v0.0.13
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	k8s.io/api v0.36.2
