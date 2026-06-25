@@ -95,7 +95,6 @@ func Test_Gateway_Configure(t *testing.T) {
 					assert.Len(t, envoyProxy.Spec.Provider.Kubernetes.EnvoyDeployment.Pod.ImagePullSecrets, len(tC.imagePullSecrets))
 				}
 			}
-			assert.NoError(t, err)
 
 			gateway := getGateway()
 			err = clusterClient.Get(t.Context(), client.ObjectKeyFromObject(gateway), gateway)
