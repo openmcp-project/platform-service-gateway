@@ -158,7 +158,31 @@ func getEnvoyProxy() *egv1a1.EnvoyProxy {
 
 func (g *Gateway) reconcileEnvoyProxyFunc(obj *egv1a1.EnvoyProxy) func() error {
 	return func() error {
+		var image *string
+		var imagePullSecrets []corev1.LocalObjectReference
+
+		if img := g.EnvoyConfig.Images; img != nil {
+			imagePullSecrets = img.ImagePullSecrets
+			if img.EnvoyProxy != "" {
+				image = &img.EnvoyProxy
+			}
+		}
+
 		obj.Spec.IPFamily = g.EnvoyConfig.IPFamily
+		obj.Spec.Provider = &egv1a1.EnvoyProxyProvider{
+			Type: egv1a1.EnvoyProxyProviderTypeKubernetes,
+			Kubernetes: &egv1a1.EnvoyProxyKubernetesProvider{
+				EnvoyDeployment: &egv1a1.KubernetesDeploymentSpec{
+					Pod: &egv1a1.KubernetesPodSpec{
+						ImagePullSecrets: imagePullSecrets,
+					},
+					Container: &egv1a1.KubernetesContainerSpec{
+						Image: image,
+					},
+				},
+			},
+		}
+
 		return nil
 	}
 }
