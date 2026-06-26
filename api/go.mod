@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	github.com/envoyproxy/gateway v1.8.1
-	github.com/fluxcd/pkg/apis/meta v1.28.0
+	github.com/fluxcd/pkg/apis/meta v1.30.0
 	github.com/openmcp-project/controller-utils v0.29.1
 	github.com/openmcp-project/openmcp-operator/api v1.0.1
 	k8s.io/api v0.36.2
@@ -14,7 +14,6 @@ require (
 )
 
 require (
-	github.com/Masterminds/semver/v3 v3.5.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
