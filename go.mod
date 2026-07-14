@@ -8,11 +8,11 @@ require (
 	github.com/envoyproxy/gateway v1.8.2
 	github.com/fluxcd/helm-controller/api v1.6.2
 	github.com/fluxcd/pkg/apis/meta v1.31.0
-	github.com/fluxcd/source-controller/api v1.9.2
+	github.com/fluxcd/source-controller/api v1.9.3
 	github.com/go-logr/logr v1.4.3
 	github.com/openmcp-project/controller-utils v0.31.0
-	github.com/openmcp-project/openmcp-operator/api v1.2.0
-	github.com/openmcp-project/openmcp-operator/lib v1.2.0
+	github.com/openmcp-project/openmcp-operator/api v1.3.0
+	github.com/openmcp-project/openmcp-operator/lib v1.3.0
 	github.com/openmcp-project/platform-service-gateway/api v0.0.14
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
