@@ -24,7 +24,10 @@ var (
 )
 
 const (
-	deploymentNamespace = "envoy-gateway-system"
+	deploymentNamespace     = "envoy-gateway-system"
+	helmKeyImage            = "image"
+	helmKeyImages           = "images"
+	helmKeyImagePullSecrets = "imagePullSecrets"
 )
 
 type Gateway struct {
@@ -189,25 +192,25 @@ func (g *Gateway) generateHelmValues() map[string]any {
 		imagePullSecrets = img.ImagePullSecrets
 		if img.EnvoyGateway != "" {
 			images["envoyGateway"] = map[string]any{
-				"image": img.EnvoyGateway,
+				helmKeyImage: img.EnvoyGateway,
 			}
 		}
 		if img.Ratelimit != "" {
 			images["ratelimit"] = map[string]any{
-				"image": img.Ratelimit,
+				helmKeyImage: img.Ratelimit,
 			}
 		}
 		if img.EnvoyProxy != "" {
 			images["envoyProxy"] = map[string]any{
-				"image": img.EnvoyProxy,
+				helmKeyImage: img.EnvoyProxy,
 			}
 		}
 	}
 
 	return map[string]any{
 		"global": map[string]any{
-			"images":           images,
-			"imagePullSecrets": imagePullSecrets,
+			helmKeyImages:           images,
+			helmKeyImagePullSecrets: imagePullSecrets,
 		},
 	}
 }
