@@ -25,32 +25,44 @@ import (
 	"github.com/openmcp-project/platform-service-gateway/internal/schemes"
 )
 
+const (
+	purposePlatform = "platform"
+	purposeWorkload = "workload"
+	labelWebhooks   = "webhooks"
+	clusterNameFoo  = "foo"
+	clusterNsFoo    = "bar"
+	testSecretName  = "my-secret"
+	testClusterName = "cluster-1"
+	providerName    = "gateway"
+	labelValueTrue  = "true"
+)
+
 var (
 	terms = []gatewayv1alpha1.ClusterTerm{
 		{
 			Selector: &gatewayv1alpha1.ClusterSelector{
-				MatchPurpose: "platform",
+				MatchPurpose: purposePlatform,
 			},
 		},
 		{
 			Selector: &gatewayv1alpha1.ClusterSelector{
 				MatchLabels: map[string]string{
-					"gateway": "true",
+					providerName: labelValueTrue,
 				},
 			},
 		},
 		{
 			Selector: &gatewayv1alpha1.ClusterSelector{
 				MatchLabels: map[string]string{
-					"webhooks": "true",
+					labelWebhooks: labelValueTrue,
 				},
-				MatchPurpose: "workload",
+				MatchPurpose: purposeWorkload,
 			},
 		},
 		{
 			ClusterRef: &gatewayv1alpha1.ClusterRef{
-				Name:      "foo",
-				Namespace: "bar",
+				Name:      clusterNameFoo,
+				Namespace: clusterNsFoo,
 			},
 		},
 	}
@@ -68,7 +80,7 @@ func Test_shouldReconcile(t *testing.T) {
 			desc: "should reconcile cluster with matching purpose",
 			cluster: &clustersv1alpha1.Cluster{
 				Spec: clustersv1alpha1.ClusterSpec{
-					Purposes: []string{"platform"},
+					Purposes: []string{purposePlatform},
 				},
 			},
 			expected: true,
@@ -78,8 +90,8 @@ func Test_shouldReconcile(t *testing.T) {
 			cluster: &clustersv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"foo":     "bar",
-						"gateway": "true",
+						clusterNameFoo: clusterNsFoo,
+						providerName:   "true",
 					},
 				},
 			},
@@ -90,11 +102,11 @@ func Test_shouldReconcile(t *testing.T) {
 			cluster: &clustersv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"webhooks": "true",
+						labelWebhooks: labelValueTrue,
 					},
 				},
 				Spec: clustersv1alpha1.ClusterSpec{
-					Purposes: []string{"workload"},
+					Purposes: []string{purposeWorkload},
 				},
 			},
 			expected: true,
@@ -104,7 +116,7 @@ func Test_shouldReconcile(t *testing.T) {
 			cluster: &clustersv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"webhooks": "true",
+						labelWebhooks: labelValueTrue,
 					},
 				},
 				Spec: clustersv1alpha1.ClusterSpec{
@@ -118,11 +130,11 @@ func Test_shouldReconcile(t *testing.T) {
 			cluster: &clustersv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"foo": "bar",
+						clusterNameFoo: clusterNsFoo,
 					},
 				},
 				Spec: clustersv1alpha1.ClusterSpec{
-					Purposes: []string{"workload"},
+					Purposes: []string{purposeWorkload},
 				},
 			},
 			expected: false,
@@ -131,8 +143,8 @@ func Test_shouldReconcile(t *testing.T) {
 			desc: "should reconcile cluster with matching ref",
 			cluster: &clustersv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "bar",
+					Name:      clusterNameFoo,
+					Namespace: clusterNsFoo,
 				},
 			},
 			expected: true,
@@ -141,7 +153,7 @@ func Test_shouldReconcile(t *testing.T) {
 			desc: "should not reconcile cluster with wrong ref",
 			cluster: &clustersv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo",
+					Name:      clusterNameFoo,
 					Namespace: "other",
 				},
 			},
@@ -151,7 +163,7 @@ func Test_shouldReconcile(t *testing.T) {
 			desc: "should reconcile cluster with wrong ref but has finalizer",
 			cluster: &clustersv1alpha1.Cluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo",
+					Name:      clusterNameFoo,
 					Namespace: "other",
 					Finalizers: []string{
 						gatewayv1alpha1.GatewayFinalizerOnCluster,
@@ -168,7 +180,7 @@ func Test_shouldReconcile(t *testing.T) {
 				WithObjects(
 					&gatewayv1alpha1.GatewayServiceConfig{
 						ObjectMeta: metav1.ObjectMeta{
-							Name: "gateway",
+							Name: providerName,
 						},
 						Spec: gatewayv1alpha1.GatewayServiceConfigSpec{
 							Clusters: terms,
@@ -179,7 +191,7 @@ func Test_shouldReconcile(t *testing.T) {
 
 			r := &ClusterReconciler{
 				PlatformCluster: clusters.NewTestClusterFromClient("test", platformClient),
-				ProviderName:    "gateway",
+				ProviderName:    providerName,
 			}
 
 			actual := r.shouldReconcile(tC.cluster)
@@ -202,13 +214,13 @@ func Test_isReferencedImagePullSecret(t *testing.T) {
 					EnvoyGateway: gatewayv1alpha1.EnvoyGatewayConfig{
 						Images: &gatewayv1alpha1.ImagesConfig{
 							ImagePullSecrets: []corev1.LocalObjectReference{
-								{Name: "my-secret"},
+								{Name: testSecretName},
 							},
 						},
 					},
 				},
 			},
-			secretName: "my-secret",
+			secretName: testSecretName,
 			expected:   true,
 		},
 		{
@@ -218,7 +230,7 @@ func Test_isReferencedImagePullSecret(t *testing.T) {
 					EnvoyGateway: gatewayv1alpha1.EnvoyGatewayConfig{
 						Images: &gatewayv1alpha1.ImagesConfig{
 							ImagePullSecrets: []corev1.LocalObjectReference{
-								{Name: "my-secret"},
+								{Name: testSecretName},
 							},
 						},
 					},
@@ -232,7 +244,7 @@ func Test_isReferencedImagePullSecret(t *testing.T) {
 			cfg: &gatewayv1alpha1.GatewayServiceConfig{
 				Spec: gatewayv1alpha1.GatewayServiceConfigSpec{},
 			},
-			secretName: "my-secret",
+			secretName: testSecretName,
 			expected:   false,
 		},
 		{
@@ -244,7 +256,7 @@ func Test_isReferencedImagePullSecret(t *testing.T) {
 					},
 				},
 			},
-			secretName: "my-secret",
+			secretName: testSecretName,
 			expected:   false,
 		},
 	}
@@ -258,9 +270,8 @@ func Test_isReferencedImagePullSecret(t *testing.T) {
 
 func Test_mapSecretToClusters(t *testing.T) {
 	const (
-		secretName   = "my-pull-secret"
-		clusterNs    = "test-ns"
-		providerName = "gateway"
+		secretName = "my-pull-secret"
+		clusterNs  = "test-ns"
 	)
 
 	testCases := []struct {
@@ -291,17 +302,17 @@ func Test_mapSecretToClusters(t *testing.T) {
 							},
 						},
 						Clusters: []gatewayv1alpha1.ClusterTerm{
-							{Selector: &gatewayv1alpha1.ClusterSelector{MatchPurpose: "platform"}},
+							{Selector: &gatewayv1alpha1.ClusterSelector{MatchPurpose: purposePlatform}},
 						},
 					},
 				},
 				&clustersv1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "cluster-1",
+						Name:      testClusterName,
 						Namespace: clusterNs,
 					},
 					Spec: clustersv1alpha1.ClusterSpec{
-						Purposes: []string{"platform"},
+						Purposes: []string{purposePlatform},
 					},
 				},
 				&clustersv1alpha1.Cluster{
@@ -310,7 +321,7 @@ func Test_mapSecretToClusters(t *testing.T) {
 						Namespace: clusterNs,
 					},
 					Spec: clustersv1alpha1.ClusterSpec{
-						Purposes: []string{"platform"},
+						Purposes: []string{purposePlatform},
 					},
 				},
 			},
@@ -338,17 +349,17 @@ func Test_mapSecretToClusters(t *testing.T) {
 							},
 						},
 						Clusters: []gatewayv1alpha1.ClusterTerm{
-							{Selector: &gatewayv1alpha1.ClusterSelector{MatchPurpose: "platform"}},
+							{Selector: &gatewayv1alpha1.ClusterSelector{MatchPurpose: purposePlatform}},
 						},
 					},
 				},
 				&clustersv1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "cluster-1",
+						Name:      testClusterName,
 						Namespace: clusterNs,
 					},
 					Spec: clustersv1alpha1.ClusterSpec{
-						Purposes: []string{"platform"},
+						Purposes: []string{purposePlatform},
 					},
 				},
 			},
@@ -376,17 +387,17 @@ func Test_mapSecretToClusters(t *testing.T) {
 							},
 						},
 						Clusters: []gatewayv1alpha1.ClusterTerm{
-							{Selector: &gatewayv1alpha1.ClusterSelector{MatchPurpose: "platform"}},
+							{Selector: &gatewayv1alpha1.ClusterSelector{MatchPurpose: purposePlatform}},
 						},
 					},
 				},
 				&clustersv1alpha1.Cluster{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "cluster-1",
+						Name:      testClusterName,
 						Namespace: clusterNs,
 					},
 					Spec: clustersv1alpha1.ClusterSpec{
-						Purposes: []string{"platform"},
+						Purposes: []string{purposePlatform},
 					},
 				},
 			},
@@ -465,7 +476,7 @@ func Test_ClusterReconciler_Reconcile(t *testing.T) {
 			platformInitObjs: []client.Object{
 				&gatewayv1alpha1.GatewayServiceConfig{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "gateway",
+						Name: providerName,
 					},
 					Spec: gatewayv1alpha1.GatewayServiceConfigSpec{
 						Clusters: terms,

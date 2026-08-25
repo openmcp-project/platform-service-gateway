@@ -83,6 +83,7 @@ const (
 	testEnvoyGatewayImg = "oci.local/gateway:v0.0.1"
 	testRatelimitImg    = "oci.local/ratelimit:v0.0.1"
 	testEnvoyProxyImg   = "oci.local/proxy:v0.0.1"
+	testSecretName      = "my-secret"
 )
 
 func Test_Gateway_InstallOrUpdate(t *testing.T) {
@@ -98,12 +99,12 @@ func Test_Gateway_InstallOrUpdate(t *testing.T) {
 			desc: "should install with image pull secrets",
 			testSetup: testSetup{
 				imagePullSecrets: []corev1.LocalObjectReference{
-					{Name: "my-secret"},
+					{Name: testSecretName},
 				},
 				platformInitObjs: []client.Object{
 					&corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "my-secret",
+							Name:      testSecretName,
 							Namespace: testCluster.Namespace,
 						},
 						Type: corev1.SecretTypeDockerConfigJson,
@@ -167,16 +168,16 @@ func Test_Gateway_generateHelmValues_images(t *testing.T) {
 			ratelimitImg:    testRatelimitImg,
 			envoyProxyImg:   testEnvoyProxyImg,
 			imagePullSecrets: []corev1.LocalObjectReference{
-				{Name: "my-secret"},
+				{Name: testSecretName},
 			},
 			expectedGlobal: map[string]any{
-				"images": map[string]any{
-					"envoyGateway": map[string]any{"image": testEnvoyGatewayImg},
-					"ratelimit":    map[string]any{"image": testRatelimitImg},
-					"envoyProxy":   map[string]any{"image": testEnvoyProxyImg},
+				helmKeyImages: map[string]any{
+					"envoyGateway": map[string]any{helmKeyImage: testEnvoyGatewayImg},
+					"ratelimit":    map[string]any{helmKeyImage: testRatelimitImg},
+					"envoyProxy":   map[string]any{helmKeyImage: testEnvoyProxyImg},
 				},
-				"imagePullSecrets": []corev1.LocalObjectReference{
-					{Name: "my-secret"},
+				helmKeyImagePullSecrets: []corev1.LocalObjectReference{
+					{Name: testSecretName},
 				},
 			},
 		},
@@ -184,17 +185,17 @@ func Test_Gateway_generateHelmValues_images(t *testing.T) {
 			desc:            "only envoyGateway image set",
 			envoyGatewayImg: testEnvoyGatewayImg,
 			expectedGlobal: map[string]any{
-				"images": map[string]any{
-					"envoyGateway": map[string]any{"image": testEnvoyGatewayImg},
+				helmKeyImages: map[string]any{
+					"envoyGateway": map[string]any{helmKeyImage: testEnvoyGatewayImg},
 				},
-				"imagePullSecrets": []corev1.LocalObjectReference(nil),
+				helmKeyImagePullSecrets: []corev1.LocalObjectReference(nil),
 			},
 		},
 		{
 			desc: "no images set",
 			expectedGlobal: map[string]any{
-				"images":           map[string]any{},
-				"imagePullSecrets": []corev1.LocalObjectReference(nil),
+				helmKeyImages:           map[string]any{},
+				helmKeyImagePullSecrets: []corev1.LocalObjectReference(nil),
 			},
 		},
 	}

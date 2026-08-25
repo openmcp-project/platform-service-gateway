@@ -27,7 +27,7 @@ func Test_Gateway_Configure(t *testing.T) {
 			desc: "should configure gateway with pull secrets when no resources are present",
 			testSetup: testSetup{
 				imagePullSecrets: []corev1.LocalObjectReference{
-					{Name: "my-secret"},
+					{Name: testSecretName},
 				},
 			},
 		},
