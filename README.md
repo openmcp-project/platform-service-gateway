@@ -83,6 +83,8 @@ spec:
         matchPurpose: platform
     - selector:
         matchPurpose: workload
+    - selector:
+        matchPurpose: workload-odg
 
   dns:
     baseDomain: dev.openmcp.example.com

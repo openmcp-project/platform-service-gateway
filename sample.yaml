@@ -16,6 +16,9 @@ spec:
         matchPurpose: workload
         matchLabels:
           foo: bar
+    # Match dedicated ODG workload clusters
+    - selector:
+        matchPurpose: workload-odg
     # Match specific cluster
     - clusterRef:
         name: abc
