@@ -3,11 +3,13 @@ package cluster
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/openmcp-project/controller-utils/pkg/clusters"
 	clustersv1alpha1 "github.com/openmcp-project/openmcp-operator/api/clusters/v1alpha1"
 	commonapi "github.com/openmcp-project/openmcp-operator/api/common"
+	openmcpconst "github.com/openmcp-project/openmcp-operator/api/constants"
 	accesslib "github.com/openmcp-project/openmcp-operator/lib/clusteraccess/advanced"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -464,6 +466,7 @@ func Test_ClusterReconciler_Reconcile(t *testing.T) {
 		req                      reconcile.Request
 		expectedResult           controllerruntime.Result
 		expectedErr              error
+		runBeforeReconcile       func(ctx context.Context, r *ClusterReconciler, req reconcile.Request)
 	}{
 		{
 			desc:        "should not return error when object does not exist",
@@ -491,6 +494,64 @@ func Test_ClusterReconciler_Reconcile(t *testing.T) {
 			},
 			expectedErr: nil,
 		},
+		{
+			desc: "should not use an AccessRequest which is already in deletion",
+			req:  reqSample,
+			platformInitObjs: []client.Object{
+				&gatewayv1alpha1.GatewayServiceConfig{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: providerName,
+					},
+					Spec: gatewayv1alpha1.GatewayServiceConfigSpec{
+						Clusters: terms,
+					},
+				},
+				&clustersv1alpha1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      reqSample.Name,
+						Namespace: reqSample.Namespace,
+						Finalizers: []string{
+							gatewayv1alpha1.GatewayFinalizerOnCluster,
+						},
+						DeletionTimestamp: &metav1.Time{Time: time.Now()},
+					},
+				},
+				&clustersv1alpha1.AccessRequest{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      accesslib.StableRequestName(ControllerName, reqSample, "test"),
+						Namespace: reqSample.Namespace,
+						Labels: map[string]string{
+							openmcpconst.ManagedByLabel:      ControllerName,
+							openmcpconst.ManagedPurposeLabel: "test.sample.cluster",
+						},
+						Finalizers: []string{
+							"some-blocking-finalizer",
+						},
+					},
+					Status: clustersv1alpha1.AccessRequestStatus{
+						Status: commonapi.Status{
+							ObservedGeneration: 0,
+							Phase:              clustersv1alpha1.REQUEST_GRANTED,
+						},
+						SecretRef: &commonapi.LocalObjectReference{
+							// the secret does not exist, so trying to use it would cause an error
+							Name: "foo",
+						},
+					},
+				},
+			},
+			runBeforeReconcile: func(ctx context.Context, r *ClusterReconciler, req reconcile.Request) {
+				res, err := r.ClusterAccessReconciler.Reconcile(ctx, req) // create correct state
+				assert.NoError(t, err)
+				assert.Zero(t, res.RequeueAfter)
+
+				res, err = r.ClusterAccessReconciler.ReconcileDelete(ctx, req)
+				assert.NoError(t, err)
+				assert.NotZero(t, res.RequeueAfter)
+			},
+			expectedResult: reconcile.Result{RequeueAfter: 5 * time.Second},
+			expectedErr:    nil,
+		},
 	}
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
@@ -514,7 +575,7 @@ func Test_ClusterReconciler_Reconcile(t *testing.T) {
 				ClusterAccessReconciler: accesslib.NewClusterAccessReconciler(platformClient, ControllerName).
 					WithFakeClientGenerator(func(ctx context.Context, kcfgData []byte, scheme *runtime.Scheme, additionalData ...any) (client.Client, error) {
 						return clusterClient, nil
-					}).Register(accesslib.ExistingCluster("test", "", accesslib.IdentityReferenceGenerator).
+					}).Register(accesslib.ExistingCluster(clusterId, "test", accesslib.IdentityReferenceGenerator).
 					WithTokenAccess(&clustersv1alpha1.TokenConfig{
 						RoleRefs: []commonapi.RoleRef{
 							{
@@ -529,6 +590,9 @@ func Test_ClusterReconciler_Reconcile(t *testing.T) {
 			}
 
 			ctx := logr.NewContext(t.Context(), logr.New(nil))
+			if tC.runBeforeReconcile != nil {
+				tC.runBeforeReconcile(ctx, cr, tC.req)
+			}
 			res, err := cr.Reconcile(ctx, tC.req)
 			assert.Equal(t, tC.expectedResult, res)
 			if tC.expectedErr != nil {
