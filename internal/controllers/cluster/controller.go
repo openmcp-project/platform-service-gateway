@@ -153,12 +153,16 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, req reconcile.Request
 	}
 
 	if !c.DeletionTimestamp.IsZero() || !r.enabledForCluster(c) {
-		// delete gateway resources
-		if err := gwMgr.Cleanup(ctx); err != nil {
-			if utils.IsRemainingResourcesError(err) {
-				r.eventRecorder.Eventf(c, nil, corev1.EventTypeNormal, reasonRemainingResources, actionUninstallGateway, err.Error())
+		if gwMgr.ClusterClient != nil {
+			// delete gateway resources
+			if err := gwMgr.Cleanup(ctx); err != nil {
+				if utils.IsRemainingResourcesError(err) {
+					r.eventRecorder.Eventf(c, nil, corev1.EventTypeNormal, reasonRemainingResources, actionUninstallGateway, err.Error())
+				}
+				return ctrl.Result{}, err
 			}
-			return ctrl.Result{}, err
+		} else {
+			log.Debug("Skipping deletion of gateway resource, as the access to the cluster seems to be already gone, which indicates that the gateway resources should already be deleted.")
 		}
 
 		// uninstall gateway
@@ -227,16 +231,6 @@ func (r *ClusterReconciler) buildGatewayManager(ctx context.Context, req reconci
 		return nil, utils.NewRetryableError(errClusterAccessNotYetAvailable, res.RequeueAfter)
 	}
 
-	ar, err := r.ClusterAccessReconciler.AccessRequest(ctx, req, clusterId)
-	if err != nil {
-		return nil, errors.Join(errFailedToGetAccessRequest, err)
-	}
-
-	access, err := r.ClusterAccessReconciler.Access(ctx, req, clusterId)
-	if err != nil {
-		return nil, errors.Join(errFailedToGetClusterAccess, err)
-	}
-
 	cfg, err := r.getGatewayServiceConfig(ctx, r.ProviderName)
 	if err != nil {
 		return nil, err
@@ -248,14 +242,33 @@ func (r *ClusterReconciler) buildGatewayManager(ctx context.Context, req reconci
 		GatewayConfig:  cfg.Spec.Gateway,
 		DNSConfig:      cfg.Spec.DNS,
 		PlatformClient: r.PlatformCluster.Client(),
-		ClusterClient:  access.Client(),
-		FluxKubeconfig: &fluxmeta.KubeConfigReference{
+	}
+
+	ar, err := r.ClusterAccessReconciler.AccessRequest(ctx, req, clusterId)
+	if err != nil {
+		if c.DeletionTimestamp.IsZero() || !apierrors.IsNotFound(err) {
+			// Ignore a missing AccessRequest if the Cluster is in deletion, as this might happen during the cleanup process.
+			return nil, errors.Join(errFailedToGetAccessRequest, err)
+		}
+	}
+	if ar != nil {
+		// this is only required in the create/update path, so not setting it in the deletion path should be fine
+		gw.FluxKubeconfig = &fluxmeta.KubeConfigReference{
 			SecretRef: &fluxmeta.SecretKeyReference{
 				Name: ar.Status.SecretRef.Name,
 				Key:  clustersv1alpha1.SecretKeyKubeconfig,
 			},
-		},
+		}
+
+		if ar.DeletionTimestamp.IsZero() {
+			access, err := r.ClusterAccessReconciler.Access(ctx, req, clusterId)
+			if err != nil {
+				return nil, errors.Join(errFailedToGetClusterAccess, err)
+			}
+			gw.ClusterClient = access.Client()
+		}
 	}
+
 	return gw, nil
 }
 
