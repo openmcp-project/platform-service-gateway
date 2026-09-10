@@ -1,6 +1,6 @@
 module github.com/openmcp-project/platform-service-gateway
 
-go 1.26.7
+go 1.27.0
 
 replace github.com/openmcp-project/platform-service-gateway/api => ./api
 
@@ -10,9 +10,9 @@ require (
 	github.com/fluxcd/pkg/apis/meta v1.31.0
 	github.com/fluxcd/source-controller/api v1.9.5
 	github.com/go-logr/logr v1.4.4
-	github.com/openmcp-project/controller-utils v0.32.0
-	github.com/openmcp-project/openmcp-operator/api v1.3.0
-	github.com/openmcp-project/openmcp-operator/lib v1.3.0
+	github.com/openmcp-project/controller-utils v0.33.0
+	github.com/openmcp-project/openmcp-operator/api v1.4.0
+	github.com/openmcp-project/openmcp-operator/lib v1.4.0
 	github.com/openmcp-project/platform-service-gateway/api v0.2.1
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
