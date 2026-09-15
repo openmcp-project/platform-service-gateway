@@ -17,6 +17,7 @@ import (
 	accesslib "github.com/openmcp-project/openmcp-operator/lib/clusteraccess/advanced"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -215,7 +216,7 @@ func (r *ClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.Cluster{}).
 		Watches(&gatewayv1alpha1.GatewayServiceConfig{}, r.mapGatewayServiceConfigToClusters(log)).
-		Watches(&corev1.Secret{}, r.mapSecretToRequests(log)).
+		WatchesMetadata(&corev1.Secret{}, r.mapSecretToRequests(log)).
 		Complete(r)
 }
 
@@ -368,7 +369,7 @@ func (r *ClusterReconciler) mapGatewayServiceConfigToClusters(log logging.Logger
 // mapSecretToRequests returns an event handler that maps ImagePullSecret updates to reconciliation requests for clusters in the same namespace.
 func (r *ClusterReconciler) mapSecretToRequests(log logging.Logger) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
-		secret, ok := obj.(*corev1.Secret)
+		secret, ok := obj.(*metav1.PartialObjectMetadata)
 		if !ok {
 			return nil
 		}
