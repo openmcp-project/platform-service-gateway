@@ -278,13 +278,13 @@ func Test_mapSecretToClusters(t *testing.T) {
 
 	testCases := []struct {
 		desc          string
-		secret        *corev1.Secret
+		secret        *metav1.PartialObjectMetadata
 		platformObjs  []client.Object
 		expectedCount int
 	}{
 		{
 			desc: "should enqueue clusters when referenced ImagePullSecret changes",
-			secret: &corev1.Secret{
+			secret: &metav1.PartialObjectMetadata{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      secretName,
 					Namespace: clusterNs,
@@ -331,7 +331,7 @@ func Test_mapSecretToClusters(t *testing.T) {
 		},
 		{
 			desc: "should not enqueue clusters for unrelated secret",
-			secret: &corev1.Secret{
+			secret: &metav1.PartialObjectMetadata{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "unrelated-secret",
 					Namespace: clusterNs,
@@ -369,7 +369,7 @@ func Test_mapSecretToClusters(t *testing.T) {
 		},
 		{
 			desc: "should not enqueue clusters in different namespace",
-			secret: &corev1.Secret{
+			secret: &metav1.PartialObjectMetadata{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      secretName,
 					Namespace: "other-ns",
@@ -427,7 +427,7 @@ func Test_mapSecretToClusters(t *testing.T) {
 
 // mapSecretToClusterRequests is a test helper that replicates the logic of mapSecretToClusters
 // to verify the mapping without needing to unwrap the handler.
-func mapSecretToClusterRequests(ctx context.Context, r *ClusterReconciler, secret *corev1.Secret) []reconcile.Request {
+func mapSecretToClusterRequests(ctx context.Context, r *ClusterReconciler, secret *metav1.PartialObjectMetadata) []reconcile.Request {
 	cfg, err := r.getGatewayServiceConfig(ctx, r.ProviderName)
 	if err != nil {
 		return nil
