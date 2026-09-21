@@ -56,6 +56,7 @@ const (
 
 type ClusterReconciler struct {
 	PlatformCluster         *clusters.Cluster
+	Reader                  client.Reader
 	eventRecorder           events.EventRecorder
 	ProviderName            string
 	ProviderNamespace       string
@@ -65,6 +66,7 @@ type ClusterReconciler struct {
 func NewClusterReconciler(platformCluster *clusters.Cluster, recorder events.EventRecorder, providerName, providerNamespace string) *ClusterReconciler {
 	return &ClusterReconciler{
 		PlatformCluster:   platformCluster,
+		Reader:            platformCluster.Client(),
 		eventRecorder:     recorder,
 		ProviderName:      providerName,
 		ProviderNamespace: providerNamespace,
@@ -213,6 +215,7 @@ func (r *ClusterReconciler) reconcile(ctx context.Context, req reconcile.Request
 // SetupWithManager sets up the controller with the Manager.
 func (r *ClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	log := logging.Wrap(mgr.GetLogger()).WithName(ControllerName)
+	r.Reader = mgr.GetClient()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clustersv1alpha1.Cluster{}).
 		Watches(&gatewayv1alpha1.GatewayServiceConfig{}, r.mapGatewayServiceConfigToClusters(log)).
@@ -346,7 +349,7 @@ func (r *ClusterReconciler) mapGatewayServiceConfigToClusters(log logging.Logger
 		log.Info("GatewayServiceConfig was updated, re-enqueueing matching cluster resources", "configName", gatewayServiceConfig.Name)
 
 		clusters := &clustersv1alpha1.ClusterList{}
-		if err := r.PlatformCluster.Client().List(ctx, clusters); err != nil {
+		if err := r.reader().List(ctx, clusters); err != nil {
 			log.Error(err, "failed to list clusters")
 			return []reconcile.Request{}
 		}
@@ -355,10 +358,8 @@ func (r *ClusterReconciler) mapGatewayServiceConfigToClusters(log logging.Logger
 		for _, cluster := range clusters.Items {
 			if r.shouldReconcile(&cluster) {
 				requests = append(requests, reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      cluster.Name,
-						Namespace: cluster.Namespace,
-					},
+					Name:      cluster.Name,
+					Namespace: cluster.Namespace,
 				})
 			}
 		}
@@ -366,7 +367,7 @@ func (r *ClusterReconciler) mapGatewayServiceConfigToClusters(log logging.Logger
 	})
 }
 
-// mapSecretToRequests returns an event handler that maps ImagePullSecret updates to reconciliation requests for clusters in the same namespace.
+// mapSecretToRequests maps ImagePullSecret updates to reconciliation requests for clusters in the same namespace.
 func (r *ClusterReconciler) mapSecretToRequests(log logging.Logger) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
 		secret, ok := obj.(*metav1.PartialObjectMetadata)
@@ -379,15 +380,13 @@ func (r *ClusterReconciler) mapSecretToRequests(log logging.Logger) handler.Even
 			log.Error(err, "failed to get GatewayServiceConfig", "GatewayServiceConfigName", r.ProviderName)
 			return nil
 		}
-
 		if !isReferencedImagePullSecret(cfg, secret.Name) {
 			return nil
 		}
 
 		log.Info("ImagePullSecret was updated, re-enqueueing clusters in same namespace", "secretName", secret.Name, "namespace", secret.Namespace)
-
 		clusterList := &clustersv1alpha1.ClusterList{}
-		if err := r.PlatformCluster.Client().List(ctx, clusterList, client.InNamespace(secret.Namespace)); err != nil {
+		if err := r.reader().List(ctx, clusterList, client.InNamespace(secret.Namespace)); err != nil {
 			log.Error(err, "failed to list clusters")
 			return nil
 		}
@@ -395,12 +394,7 @@ func (r *ClusterReconciler) mapSecretToRequests(log logging.Logger) handler.Even
 		var requests []reconcile.Request
 		for _, cluster := range clusterList.Items {
 			if r.shouldReconcile(&cluster) {
-				requests = append(requests, reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      cluster.Name,
-						Namespace: cluster.Namespace,
-					},
-				})
+				requests = append(requests, reconcile.Request{Name: cluster.Name, Namespace: cluster.Namespace})
 			}
 		}
 		return requests
@@ -419,11 +413,18 @@ func isReferencedImagePullSecret(cfg *gatewayv1alpha1.GatewayServiceConfig, secr
 	return false
 }
 
-// getGatewayServiceConfig fetches the GatewayServiceConfig by name.
+func (r *ClusterReconciler) reader() client.Reader {
+	if r.Reader != nil {
+		return r.Reader
+	}
+	return r.PlatformCluster.Client()
+}
+
+// getGatewayServiceConfig gets the GatewayServiceConfig from the manager cache after setup.
 func (r *ClusterReconciler) getGatewayServiceConfig(ctx context.Context, gscName string) (*gatewayv1alpha1.GatewayServiceConfig, error) {
+	reader := r.reader()
 	config := &gatewayv1alpha1.GatewayServiceConfig{}
-	err := r.PlatformCluster.Client().Get(ctx, types.NamespacedName{Name: gscName}, config)
-	if err != nil {
+	if err := reader.Get(ctx, types.NamespacedName{Name: gscName}, config); err != nil {
 		return nil, fmt.Errorf("failed to get GatewayServiceConfig '%s': %w", gscName, err)
 	}
 	return config, nil
