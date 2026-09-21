@@ -438,7 +438,7 @@ func mapSecretToClusterRequests(ctx context.Context, r *ClusterReconciler, secre
 	}
 
 	clusterList := &clustersv1alpha1.ClusterList{}
-	if err := r.PlatformCluster.Client().List(ctx, clusterList, client.InNamespace(secret.Namespace)); err != nil {
+	if err := r.reader().List(ctx, clusterList, client.InNamespace(secret.Namespace)); err != nil {
 		return nil
 	}
 
@@ -454,6 +454,43 @@ func mapSecretToClusterRequests(ctx context.Context, r *ClusterReconciler, secre
 		}
 	}
 	return requests
+}
+
+func Test_ClusterReconciler_UsesConfiguredReaderForSecretMapping(t *testing.T) {
+	const namespace = "test-ns"
+	reader := fake.NewClientBuilder().
+		WithScheme(schemes.Platform).
+		WithObjects(
+			&gatewayv1alpha1.GatewayServiceConfig{
+				ObjectMeta: metav1.ObjectMeta{Name: providerName},
+				Spec: gatewayv1alpha1.GatewayServiceConfigSpec{
+					EnvoyGateway: gatewayv1alpha1.EnvoyGatewayConfig{
+						Images: &gatewayv1alpha1.ImagesConfig{
+							ImagePullSecrets: []corev1.LocalObjectReference{{Name: testSecretName}},
+						},
+					},
+					Clusters: []gatewayv1alpha1.ClusterTerm{{
+						Selector: &gatewayv1alpha1.ClusterSelector{MatchPurpose: purposePlatform},
+					}},
+				},
+			},
+			&clustersv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{Name: testClusterName, Namespace: namespace},
+				Spec:       clustersv1alpha1.ClusterSpec{Purposes: []string{purposePlatform}},
+			},
+		).
+		Build()
+	platformClient := fake.NewClientBuilder().WithScheme(schemes.Platform).Build()
+	r := &ClusterReconciler{
+		PlatformCluster: clusters.NewTestClusterFromClient("platform", platformClient),
+		Reader:          reader,
+		ProviderName:    providerName,
+	}
+
+	requests := mapSecretToClusterRequests(t.Context(), r, &metav1.PartialObjectMetadata{
+		ObjectMeta: metav1.ObjectMeta{Name: testSecretName, Namespace: namespace},
+	})
+	assert.Equal(t, []reconcile.Request{{NamespacedName: types.NamespacedName{Name: testClusterName, Namespace: namespace}}}, requests)
 }
 
 func Test_ClusterReconciler_Reconcile(t *testing.T) {
