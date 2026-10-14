@@ -5,7 +5,7 @@ go 1.27.2
 require (
 	github.com/envoyproxy/gateway v1.9.2
 	github.com/fluxcd/pkg/apis/meta v1.32.0
-	github.com/openmcp-project/controller-utils v0.33.1
+	github.com/openmcp-project/controller-utils v0.33.2
 	github.com/openmcp-project/openmcp-operator/api v1.4.1
 	k8s.io/api v0.37.1
 	k8s.io/apiextensions-apiserver v0.37.1
@@ -69,8 +69,8 @@ require (
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad // indirect
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3 // indirect
-	sigs.k8s.io/controller-runtime v0.25.1 // indirect
-	sigs.k8s.io/gateway-api v1.6.2 // indirect
+	sigs.k8s.io/controller-runtime v0.25.2 // indirect
+	sigs.k8s.io/gateway-api v1.6.3 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
