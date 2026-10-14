@@ -154,10 +154,6 @@ spec:
                       rateLimit:
                         description: 'Ratelimit image. Example: docker.io/envoyproxy/ratelimit:e74a664a'
                         type: string
-                    required:
-                    - gateway
-                    - proxy
-                    - rateLimit
                     type: object
                   ipFamily:
                     description: |-
