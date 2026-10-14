@@ -86,12 +86,15 @@ type EnvoyGatewayChart struct {
 
 type ImagesConfig struct {
 	// EnvoyProxy image. Example: docker.io/envoyproxy/envoy:distroless-v1.35.3
+	// +optional
 	EnvoyProxy string `json:"proxy,omitempty"`
 
 	// EnvoyGateway image. Example: docker.io/envoyproxy/gateway:v1.5.1
+	// +optional
 	EnvoyGateway string `json:"gateway,omitempty"`
 
 	// Ratelimit image. Example: docker.io/envoyproxy/ratelimit:e74a664a
+	// +optional
 	Ratelimit string `json:"rateLimit,omitempty"`
 
 	// ImagePullSecrets specifies the Secrets containing authentication credentials
