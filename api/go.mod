@@ -4,7 +4,7 @@ go 1.27.2
 
 require (
 	github.com/envoyproxy/gateway v1.9.2
-	github.com/fluxcd/pkg/apis/meta v1.32.0
+	github.com/fluxcd/pkg/apis/meta v1.33.0
 	github.com/openmcp-project/controller-utils v0.33.2
 	github.com/openmcp-project/openmcp-operator/api v1.4.2
 	k8s.io/api v0.37.1
