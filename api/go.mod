@@ -1,6 +1,6 @@
 module github.com/openmcp-project/platform-service-gateway/api
 
-go 1.27.2
+go 1.27.3
 
 require (
 	github.com/envoyproxy/gateway v1.9.2
