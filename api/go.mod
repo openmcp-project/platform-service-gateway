@@ -7,10 +7,10 @@ require (
 	github.com/fluxcd/pkg/apis/meta v1.38.0
 	github.com/openmcp-project/controller-utils v0.33.3
 	github.com/openmcp-project/openmcp-operator/api v1.4.4
-	k8s.io/api v0.37.1
-	k8s.io/apiextensions-apiserver v0.37.1
-	k8s.io/apimachinery v0.37.1
-	k8s.io/client-go v0.37.1
+	k8s.io/api v0.37.2
+	k8s.io/apiextensions-apiserver v0.37.2
+	k8s.io/apimachinery v0.37.2
+	k8s.io/client-go v0.37.2
 )
 
 require (
