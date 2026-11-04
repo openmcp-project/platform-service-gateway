@@ -6,9 +6,9 @@ replace github.com/openmcp-project/platform-service-gateway/api => ./api
 
 require (
 	github.com/envoyproxy/gateway v1.9.3
-	github.com/fluxcd/helm-controller/api v1.6.5
+	github.com/fluxcd/helm-controller/api v1.7.1
 	github.com/fluxcd/pkg/apis/meta v1.38.0
-	github.com/fluxcd/source-controller/api v1.9.6
+	github.com/fluxcd/source-controller/api v1.10.0
 	github.com/go-logr/logr v1.4.4
 	github.com/openmcp-project/controller-utils v0.33.3
 	github.com/openmcp-project/openmcp-operator/api v1.4.4
@@ -38,7 +38,7 @@ require (
 	github.com/evanphx/json-patch v5.9.11+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
-	github.com/fluxcd/pkg/apis/acl v0.10.0 // indirect
+	github.com/fluxcd/pkg/apis/acl v0.12.0 // indirect
 	github.com/fluxcd/pkg/apis/kustomize v1.23.0 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.3 // indirect
