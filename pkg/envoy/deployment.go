@@ -90,7 +90,7 @@ func (g *Gateway) getHelmRelease() *helmv2.HelmRelease {
 
 func (g *Gateway) reconcileOCIRepositoryFunc(obj *sourcev1.OCIRepository) func() error {
 	return func() error {
-		obj.Spec.Interval = metav1.Duration{Duration: 10 * time.Hour}
+		obj.Spec.Interval = &metav1.Duration{Duration: 10 * time.Hour}
 		obj.Spec.LayerSelector = &sourcev1.OCILayerSelector{
 			MediaType: "application/vnd.cncf.helm.chart.content.v1.tar+gzip",
 			Operation: "copy",
