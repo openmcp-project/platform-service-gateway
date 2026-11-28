@@ -6,7 +6,7 @@ require (
 	github.com/envoyproxy/gateway v1.10.0
 	github.com/fluxcd/pkg/apis/meta v1.39.0
 	github.com/openmcp-project/controller-utils v0.34.0
-	github.com/openmcp-project/openmcp-operator/api v1.4.4
+	github.com/openmcp-project/openmcp-operator/api v1.4.5
 	k8s.io/api v0.37.2
 	k8s.io/apiextensions-apiserver v0.37.2
 	k8s.io/apimachinery v0.37.2
